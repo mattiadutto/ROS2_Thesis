@@ -1,0 +1,43 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "includePath": [
+                "/home/garabetov/turtlebot3/install/turtlebot3_fake_node/include/**",
+                "/home/garabetov/turtlebot3/install/turtlebot3_msgs/include/**",
+                "/home/garabetov/turtlebot3/install/turtlebot3_gazebo/include/**",
+                "/home/garabetov/turtlebot3/install/nav2_custom_controller/include/**",
+                "/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/include/**",
+                "/home/garabetov/turtlebot3/install/dynamixel_sdk/include/**",
+                "/opt/ros/humble/include/**",
+                "/home/garabetov/turtlebot3/src/DynamixelSDK/dynamixel_sdk/include/**",
+                "/home/garabetov/turtlebot3/src/DynamixelSDK/dynamixel_sdk_examples/include/**",
+                "/home/garabetov/turtlebot3/src/feedback_lin/include/**",
+                "/home/garabetov/turtlebot3/src/goal_pose/include/**",
+                "/home/garabetov/turtlebot3/src/nav2_custom_controller/include/**",
+                "/home/garabetov/turtlebot3/src/teleop/include/**",
+                "/home/garabetov/turtlebot3/src/turtlebot3/turtlebot3_node/include/**",
+                "/home/garabetov/turtlebot3/src/turtlebot3_simulations/turtlebot3_fake_node/include/**",
+                "/home/garabetov/turtlebot3/src/turtlebot3_simulations/turtlebot3_gazebo/include/**",
+                "/usr/include/**",
+                "${workspaceFolder}/goal_pose/include/*",
+                "/home/garabetov/turtlebot3/**",
+                "/home/garabetov/turtlebot3/src/feedback_lin/include/**",
+                "${workspaceFolder}/feedback_lin/include",
+                "/home/garabetov/turtlebot3/src/nav2_custom_controller/include/",
+                "/home/garabetov/turtlebot3/src/nav2_custom_controller/include/**",
+                "/home/garabetov/turtlebot3/src/nav2_custom_controller/include/nav2_custom_controller",
+                "/opt/ros/humble/include/geometry_msgs"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "${default}",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}
