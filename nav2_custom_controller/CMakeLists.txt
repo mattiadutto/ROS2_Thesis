@@ -16,6 +16,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(costmap_converter REQUIRED)
 
 nav2_package()
 
@@ -32,6 +33,7 @@ set(dependencies
   nav2_util
   nav2_core
   tf2
+  costmap_converter
 )
 
 add_library(nav2_custom_controller SHARED

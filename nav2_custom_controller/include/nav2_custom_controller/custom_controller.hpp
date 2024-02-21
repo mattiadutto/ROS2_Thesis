@@ -22,6 +22,12 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 
+#include "costmap_converter_msgs/msg/obstacle_msg.hpp"
+#include "costmap_converter/costmap_converter_interface.h"
+
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+
 
 
 namespace nav2_custom_controller
@@ -33,7 +39,7 @@ class CustomController : public nav2_core::Controller
 
     public:
 
-    CustomController() = default; 
+    CustomController(); 
     ~CustomController() override = default;
 
     
@@ -77,6 +83,12 @@ class CustomController : public nav2_core::Controller
     // - percentage: percentage from maximum robot speed
     void setSpeedLimit(const double & speed_limit, const bool & percentage) override;   
 
+    void timer_callback();
+    void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
+
+
+
+
     
 
 
@@ -90,11 +102,31 @@ class CustomController : public nav2_core::Controller
     rclcpp::Logger logger_{rclcpp::get_logger("CustomController")};
     rclcpp::Clock::SharedPtr clock_;
 
+    rclcpp::Node::SharedPtr intra_proc_node_;
+
+    std::string costmap_converter_plugin_; //!< Define a plugin name of the costmap_converter package (costmap cells are converted to points/lines/polygons)
+
+    int costmap_converter_rate_; //!< The rate that defines how often the costmap_converter plugin processes the current costmap (the value should not be much higher than the costmap update rate)
+
+    std::string odom_topic_;
+
+    nav2_costmap_2d::Costmap2D* costmap_;
+
+
     FeedbackLin feedback_lin_;
 
     nav_msgs::msg::Path global_plan_;
     geometry_msgs::msg::PoseStamped target_pose_;
     geometry_msgs::msg::TwistStamped cmd_vel_;
+
+    pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
+    std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
+
+  rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+ 
+  rclcpp::TimerBase::SharedPtr wall_timer_;
+
 
 
 };

@@ -40,6 +40,12 @@ Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   return lowest_it;
 }
 
+
+CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
+{
+
+}
+
 void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
     std::string name, const std::shared_ptr<tf2_ros::Buffer>  tf,
     const std::shared_ptr<nav2_costmap_2d::Costmap2DROS>  costmap_ros)
@@ -55,7 +61,142 @@ void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr 
   logger_ = node->get_logger(); 
   clock_ = node->get_clock();
 
+  // create new instance of rclcpp:Node with name: costmap_converter
+  intra_proc_node_.reset(new rclcpp::Node("costmap_converter", node->get_namespace(), rclcpp::NodeOptions()));
+
+  // asign the costmap as a pointer costmap_
+  costmap_ = costmap_ros_->getCostmap();
+
+// Parameter declaration 
+  declare_parameter_if_not_declared(
+    node, plugin_name_ + ".costmap_converter_plugin", rclcpp::ParameterValue("costmap_converter::CostmapToLinesDBSRANSAC"));
+ 
+  declare_parameter_if_not_declared(
+    node, plugin_name_ + ".costmap_converter_rate", rclcpp::ParameterValue(5));
+
+  declare_parameter_if_not_declared(
+    node, plugin_name_ + ".odom_topic", rclcpp::ParameterValue(""));
+
+// Set parameters from yaml file
+  node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
+  node->get_parameter(plugin_name_ + ".costmap_converter_rate",costmap_converter_rate_); 
+  node->get_parameter(plugin_name_ + ".odom_topic",odom_topic_);
+
+
+
+// costmap_converter plugin load
+  try
+      {
+        // load the plugin
+        costmap_converter_ = costmap_converter_loader_.createSharedInstance(costmap_converter_plugin_);
+        // set odom topic
+        costmap_converter_->setOdomTopic(odom_topic_);
+        // initialize costmap_converter by passing nodehandle
+        costmap_converter_->initialize(intra_proc_node_);
+        // pass a pointer to the costmap
+        costmap_converter_->setCostmap2D(costmap_);
+        // set the rate of the plugin (it must not be much higher than costmap update rate)
+        const auto rate = std::make_shared<rclcpp::Rate>((double)costmap_converter_rate_);
+        // convert most recent costmap to polygons with startWroker() method
+        // it also invoke compute() method of the loaded plugin that does the conversion to polygons/lines
+        costmap_converter_->startWorker(rate, costmap_, "True");
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Costmap conversion plugin %s loaded.", costmap_converter_plugin_.c_str());
+      }
+      catch(pluginlib::PluginlibException& ex)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"),
+                    "The specified costmap converter plugin cannot be loaded. All occupied costmap cells are treaten as point obstacles. Error message: %s", ex.what());
+        costmap_converter_.reset();
+      }
+
+// Publishers
+
+// being LifeCycle Publisher doesn't work needs to be rclcpp::Publisher!
+  obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 1);
+
+  marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
+  // Create a lifecycle wall timer with a callback function
+
+//call timer_callback() every 1 second
+  wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
+
+
 }
+
+void CustomController::timer_callback()
+{
+
+  // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
+  costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
+
+  // publish as ObstacleArrayMsg to costmap_obstacles topic
+  obstacle_pub_->publish(*obstacles);
+
+  // get the global frame 
+  std::string frame_id_ = costmap_ros_->getGlobalFrameID();
+
+  // function that creates polygons/lines and publishes them as Marker msg for visualisation
+  publishAsMarker(frame_id_, *obstacles);
+
+
+}
+
+void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+{
+  visualization_msgs::msg::Marker line_list; // creater line_list as Marker msg
+  line_list.header.frame_id = frame_id;
+  line_list.header.stamp = rclcpp::Clock().now();
+  line_list.ns = "Polygons"; // namespace of the container
+  line_list.action = visualization_msgs::msg::Marker::ADD; // add marker
+  line_list.pose.orientation.w = 1.0; 
+  line_list.id = 0;
+  line_list.type = visualization_msgs::msg::Marker::LINE_LIST; //line list type 
+
+  line_list.scale.x = 0.1;
+  line_list.color.g = 1.0;
+  line_list.color.a = 1.0;
+
+  for (const auto &obstacle : obstacles.obstacles) // iterate over each element in obstacles.obstacles
+      {
+        //iterate over each vertex of the current polygon and create line segments by joining polygon points
+      for (int j = 0; j < (int)obstacle.polygon.points.size() - 1; ++j)
+       {
+        geometry_msgs::msg::Point line_start;
+        line_start.x = obstacle.polygon.points[j].x; // for each point j assign to line_start 
+        line_start.y = obstacle.polygon.points[j].y;
+        line_list.points.push_back(line_start); // append each vertex points to line_list.points
+        geometry_msgs::msg::Point line_end;
+        line_end.x = obstacle.polygon.points[j + 1].x; // this creates a line_end point that is j+1
+        line_end.y = obstacle.polygon.points[j + 1].y;
+        line_list.points.push_back(line_end); //every subsequent point will represent a line
+      }// close loop for current polygon
+      
+      // After iterating through all vertices of the polygon, the loop checks if the polygon is closed (i.e., if it has more than two vertices).
+      if (!obstacle.polygon.points.empty() && obstacle.polygon.points.size() != 2) // if true -> polygon is closed
+      {
+        geometry_msgs::msg::Point line_start;
+        line_start.x = obstacle.polygon.points.back().x; // add last point of polygon to line_start.x
+        line_start.y = obstacle.polygon.points.back().y;
+        line_list.points.push_back(line_start); //append these last points to line_list.points vector
+
+        if (line_list.points.size() % 2 != 0) // if number is odd its incomplete line segment
+        {
+          geometry_msgs::msg::Point line_end;
+          line_end.x = obstacle.polygon.points.front().x; // assign the first points of polygon to line_end
+          line_end.y = obstacle.polygon.points.front().y;
+          line_list.points.push_back(line_end); // append line_end to line_list.points and line segment can be constructed
+        }
+      }
+    }
+      /// NB! from line_list.points points of a line can be taken so that equation of line can be formed
+
+      marker_pub_->publish(line_list);
+}
+
+
+
+
+
 
 void CustomController::cleanup()
 {   

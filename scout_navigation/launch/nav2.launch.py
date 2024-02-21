@@ -20,6 +20,8 @@ def generate_launch_description():
     # Rviz directory path of the Rviz Launch File (part of nav2_bringup package)
     rviz_dir = os.path.join(get_package_share_directory('nav2_bringup'))
 
+    rviz_dir_local = os.path.join(get_package_share_directory('scout_navigation'))
+
     # Config file directory path of the scout_navigation package
     config_file_dir = os.path.join(get_package_share_directory(pkg_name), 'config')
 
@@ -84,7 +86,9 @@ def generate_launch_description():
             launch_arguments={
                 'use_namespace': 'True',
                 'namespace': namespace,
-                 'rviz_config': os.path.join(rviz_dir, 'rviz', 'nav2_namespaced_view.rviz')}.items(),
+                 #'rviz_config': os.path.join(rviz_dir_local, 'rviz', 'nav2_namespaced_view.rviz')}.items(),
+                 'rviz_config': os.path.join(rviz_dir_local, 'rviz', 'config.rviz')}.items(),
+        
         
         ),
         # Launch EKF nodes

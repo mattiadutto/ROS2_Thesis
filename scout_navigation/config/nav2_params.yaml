@@ -50,7 +50,7 @@ local_costmap:
     ros__parameters:
       update_frequency: 5.0
       publish_frequency: 2.0
-      global_frame: odom
+      global_frame: map
       robot_base_frame: base_link
       use_sim_time: True
       rolling_window: True
@@ -172,6 +172,10 @@ planner_server:
       tolerance: 0.5
       use_astar: false
       allow_unknown: true
+
+
+
+
 
 planner_server_rclcpp_node:
   ros__parameters:
@@ -295,7 +299,13 @@ controller_server:
     FollowPath:
       plugin: "nav2_custom_controller/CustomController"
       debug_trajectory_details: True
-      
+      #costmap_converter::CostmapToLinesDBSRANSAC; costmap_converter::CostmapToPolygonsDBSMCCH
+      #costmap_converter_plugin: "" # deactivate plugin
+      costmap_converter_plugin: "costmap_converter::CostmapToLinesDBSRANSAC"
+      costmap_converter_spin_thread: True
+      costmap_converter_rate: 5
+      odom_topic: <robot_namespace>/odom
+
 
 controller_server_rclcpp_node:
   ros__parameters:
