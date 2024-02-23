@@ -189,6 +189,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
       }
     }
       /// NB! from line_list.points points of a line can be taken so that equation of line can be formed
+      /// NB! from line_list.points points of a vertices of the obstacle can be taken so that equation of line can be formed
 
       marker_pub_->publish(line_list);
 }
