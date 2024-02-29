@@ -174,12 +174,10 @@ planner_server:
       allow_unknown: true
 
 
-
-
-
 planner_server_rclcpp_node:
   ros__parameters:
     use_sim_time: True
+
 
 bt_navigator:
   ros__parameters:
@@ -301,7 +299,7 @@ controller_server:
       debug_trajectory_details: True
       #costmap_converter::CostmapToLinesDBSRANSAC; costmap_converter::CostmapToPolygonsDBSMCCH
       #costmap_converter_plugin: "" # deactivate plugin
-      costmap_converter_plugin: "costmap_converter::CostmapToLinesDBSRANSAC"
+      costmap_converter_plugin: "costmap_converter::CostmapToPolygonsDBSMCCH"
       costmap_converter_spin_thread: True
       costmap_converter_rate: 5
       odom_topic: <robot_namespace>/odom

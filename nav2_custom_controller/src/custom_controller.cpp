@@ -22,6 +22,7 @@ Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   {
     return end;
   }
+
   // Initialize variables to store the lowest comparison value and its corresponding iterator.
   auto lowest = getCompareVal(*begin);
   Iter lowest_it = begin;
@@ -39,6 +40,11 @@ Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   // Return the iterator pointing to the element with the minimum comparison value.
   return lowest_it;
 }
+
+// Define a lambda function for calculating Euclidean distance
+auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
+    return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
+};
 
 
 CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
@@ -109,16 +115,21 @@ void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr 
         costmap_converter_.reset();
       }
 
-// Publishers
+
+// Publishers and Subscribers
 
 // being LifeCycle Publisher doesn't work needs to be rclcpp::Publisher!
   obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 1);
+
+  polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
 
   marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
   // Create a lifecycle wall timer with a callback function
 
 //call timer_callback() every 1 second
   wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
+
+  pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
 
 }
@@ -129,16 +140,164 @@ void CustomController::timer_callback()
   // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
 
+  // tests 27/02 //////////////////////////////////////////////////////
+
+  costmap_converter::PolygonContainerConstPtr polygons = costmap_converter_->getPolygons();
+ 
+  if (polygons && polygons->size() > 1) 
+  {
+    const geometry_msgs::msg::Polygon& polygonAtIndex1 = (*polygons)[1];
+
+    // Create a PolygonStamped message
+    geometry_msgs::msg::PolygonStamped polygon_stamped_msg;
+    // Assign the Polygon message to the PolygonStamped message
+    polygon_stamped_msg.polygon = polygonAtIndex1;
+
+    polygon_stamped_msg.header.stamp = clock_->now(); // Set the header time
+    polygon_stamped_msg.header.frame_id = "map";
+
+    polygon_pub_->publish(polygon_stamped_msg);
+    
+  }
+
+
+///////////////////////////////////////////////////////////////////////
+
   // publish as ObstacleArrayMsg to costmap_obstacles topic
   obstacle_pub_->publish(*obstacles);
 
   // get the global frame 
   std::string frame_id_ = costmap_ros_->getGlobalFrameID();
 
+  costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(*obstacles);
+
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
   publishAsMarker(frame_id_, *obstacles);
 
 
+}
+
+costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+{
+
+  
+
+  costmap_converter_msgs::msg::ObstacleArrayMsg centroid;
+
+  // Clear centroid.obstacles at the beginning of the function
+    centroid.obstacles.clear();
+
+
+  for (const auto &obstacle:obstacles.obstacles)
+  {
+    double sum_x = 0;
+    double sum_y = 0;
+
+    int total_vertices = obstacle.polygon.points.size();
+
+
+
+
+    for (const auto &point:obstacle.polygon.points)
+    {
+
+      sum_x += point.x;
+      sum_y += point.y;
+
+    }
+
+
+    geometry_msgs::msg::Point32 centroid_point;
+    costmap_converter_msgs::msg::ObstacleMsg centroid_of_obstacle;
+
+    centroid_point.x = sum_x/total_vertices;
+    centroid_point.y = sum_y/total_vertices;
+
+    centroid_of_obstacle.header = obstacle.header; 
+    centroid_of_obstacle.id = obstacle.id;
+
+    centroid_of_obstacle.polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
+
+    centroid.obstacles.push_back(centroid_of_obstacle); // Add the centroid of obstacle to the centroid obstacle array
+
+
+  }
+
+  centroid_path_msg_.poses.clear();
+
+  for (const auto &obstacle : centroid.obstacles)
+{
+    
+    
+    
+    // Set the header for the centroid pose stamped message
+    centroid_pose_stamped_.header = obstacle.header;
+
+    // Set the position of the centroid as the first point in its polygon
+    centroid_pose_stamped_.pose.position.x = obstacle.polygon.points[0].x;
+    centroid_pose_stamped_.pose.position.y = obstacle.polygon.points[0].y;
+    
+    // Push the centroid pose stamped message to centroid_path.poses
+    centroid_path_msg_.poses.push_back(centroid_pose_stamped_);
+}
+
+  // print to console the vertices of polygon at index 1 and its centroid
+ /*   double polygon_x,polygon_y;
+    int it=0;
+    if (obstacles.obstacles.size()>1)
+    {
+    for (const auto &point : obstacles.obstacles[1].polygon.points)
+    {
+       std::cout << "X coordinate of vertex "<< it<<"of polygon 1: " << point.x << std::endl;
+       std::cout << "Y coordinate of vertex "<< it<<"of polygon 1: " << point.y << std::endl;
+       std::cout << "Centroid x coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].x << std::endl;
+       std::cout << "Centroid y coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].y << std::endl;
+
+
+       it++;
+
+    }*/
+
+  
+
+   //sCheck if centroid has any obstacles before accessing to prevent segmentation fault
+    if (!centroid.obstacles.empty() && centroid.obstacles.size() > 1)
+    {
+        std::cout << "Centroid x coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].x << std::endl;
+        std::cout << "Centroid y coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].y << std::endl;
+       std::cout << "Centroid x coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].x << std::endl;
+        std::cout << "Centroid y coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].y << std::endl;
+std::cout << "Centroid x coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].x << std::endl;
+        std::cout << "Centroid y coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].y << std::endl;
+
+std::cout << "Centroid x coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].x << std::endl;
+        std::cout << "Centroid y coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].y << std::endl;
+      //  std::cout << "X coordinate of robot: " << robot_pose_.pose.position.x << std::endl;
+      //  std::cout << "Y coordinate of robot: " << robot_pose_.pose.position.y << std::endl;
+        // calculate euclidean distance between robot origin and polygon 1 centroid
+      //  std::cout << "Euclidean distance: " << euclideanDistance(centroid.obstacles[1].polygon.points[0].x, centroid.obstacles[1].polygon.points[0].y, robot_pose_.pose.position.x,robot_pose_.pose.position.y) << std::endl;
+    }
+
+
+
+    // Find the closest pose on the path to the robot
+       auto closest_centroid_it =
+       min_by(
+          centroid_path_msg_.poses.begin(), centroid_path_msg_.poses.end(),
+          [this](const geometry_msgs::msg::PoseStamped &ps)
+          {
+            return euclidean_distance(robot_pose_, ps);
+          });
+
+// Check if centroid path has any poses before accessing to prevent segmentation fault
+ if (!centroid_path_msg_.poses.empty() && closest_centroid_it != centroid_path_msg_.poses.end())
+ {
+    std::cout << "Closest centroid x coordinate: " << closest_centroid_it->pose.position.x << std::endl;
+    std::cout << "Closest centroid y coordinate: " << closest_centroid_it->pose.position.y << std::endl;
+
+ }
+
+  return centroid;
 }
 
 void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
@@ -156,7 +315,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
   line_list.color.g = 1.0;
   line_list.color.a = 1.0;
 
-  for (const auto &obstacle : obstacles.obstacles) // iterate over each element in obstacles.obstacles
+  for (const auto &obstacle : obstacles.obstacles) // iterate over each element in obstacles.obstacles over each polygon
       {
         //iterate over each vertex of the current polygon and create line segments by joining polygon points
       for (int j = 0; j < (int)obstacle.polygon.points.size() - 1; ++j)
@@ -195,6 +354,16 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
 }
 
 
+void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose) 
+{
+
+
+
+  robot_pose_.pose.position.x = amcl_pose.pose.pose.position.x;
+  robot_pose_.pose.position.y = amcl_pose.pose.pose.position.y;
+
+
+}
 
 
 
@@ -229,10 +398,14 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   // Record the start time
   auto start_time = std::chrono::high_resolution_clock::now();
 
+  // centroid.obstacles.begin(),centroid.obstacles.end()
+
+
   // Find the closest pose on the path to the robot
   auto transformation_begin =
       min_by(
           global_plan_.poses.begin(), global_plan_.poses.end(),
+          //&pose is current robot pose, ps is the other pose to go in euclidean_distance
           [&pose](const geometry_msgs::msg::PoseStamped &ps)
           {
             return euclidean_distance(pose, ps);

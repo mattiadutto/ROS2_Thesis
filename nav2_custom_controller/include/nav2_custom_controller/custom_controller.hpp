@@ -84,10 +84,13 @@ class CustomController : public nav2_core::Controller
     void setSpeedLimit(const double & speed_limit, const bool & percentage) override;   
 
     void timer_callback();
+
     void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
 
+    costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
+    void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
     
 
@@ -110,22 +113,29 @@ class CustomController : public nav2_core::Controller
 
     std::string odom_topic_;
 
+    geometry_msgs::msg::PoseStamped robot_pose_;
+
+    geometry_msgs::msg::PoseStamped centroid_pose_stamped_;
+
     nav2_costmap_2d::Costmap2D* costmap_;
 
 
     FeedbackLin feedback_lin_;
 
     nav_msgs::msg::Path global_plan_;
+    nav_msgs::msg::Path centroid_path_msg_;
     geometry_msgs::msg::PoseStamped target_pose_;
     geometry_msgs::msg::TwistStamped cmd_vel_;
 
     pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
+    rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
+    rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
-  rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
  
-  rclcpp::TimerBase::SharedPtr wall_timer_;
+    rclcpp::TimerBase::SharedPtr wall_timer_;
 
 
 
