@@ -12,7 +12,7 @@ namespace nav2_custom_controller
 
 // Define a templated function 'min_by'
 // This function finds the element in the range [begin, end) that has the minimum value
-// according to a provided comparison value obtained through the 'getCompareVal' function.
+// according to a provided comparison value obtained through the 'getCompareVal' function thas it passed.
 // The 'getCompareVal' function is a getter function that extracts the comparison value from an element.
 template <typename Iter, typename Getter>
 Iter min_by(Iter begin, Iter end, Getter getCompareVal)
@@ -40,6 +40,13 @@ Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   // Return the iterator pointing to the element with the minimum comparison value.
   return lowest_it;
 }
+
+
+
+
+
+
+
 
 // Define a lambda function for calculating Euclidean distance
 auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
@@ -146,18 +153,30 @@ void CustomController::timer_callback()
  
   if (polygons && polygons->size() > 1) 
   {
-    const geometry_msgs::msg::Polygon& polygonAtIndex1 = (*polygons)[1];
-
     // Create a PolygonStamped message
     geometry_msgs::msg::PolygonStamped polygon_stamped_msg;
-    // Assign the Polygon message to the PolygonStamped message
-    polygon_stamped_msg.polygon = polygonAtIndex1;
+
+    for (const auto &polygon: *polygons)
+    {
+
+      for(const auto& point: polygon.points)
+      {
+        // Assign the Polygon message to the PolygonStamped message
+        polygon_stamped_msg.polygon.points.push_back(point);
+
+      }
+
+
+     // const geometry_msgs::msg::Polygon& polygonAtIndex1 = (*polygons)[1];
+
+      
+    }
 
     polygon_stamped_msg.header.stamp = clock_->now(); // Set the header time
     polygon_stamped_msg.header.frame_id = "map";
-
+  
     polygon_pub_->publish(polygon_stamped_msg);
-    
+
   }
 
 
@@ -171,8 +190,12 @@ void CustomController::timer_callback()
 
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(*obstacles);
 
+   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,*obstacles);
+
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
-  publishAsMarker(frame_id_, *obstacles);
+  //publishAsMarker(frame_id_, *obstacles);
+
+   publishAsMarker(frame_id_,considered_polygons);
 
 
 }
@@ -225,6 +248,8 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
   centroid_path_msg_.poses.clear();
 
+
+// convert ObstacleArrayMsg to Path msg of the centroid
   for (const auto &obstacle : centroid.obstacles)
 {
     
@@ -260,23 +285,25 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
   
 
-   //sCheck if centroid has any obstacles before accessing to prevent segmentation fault
-    if (!centroid.obstacles.empty() && centroid.obstacles.size() > 1)
-    {
-        std::cout << "Centroid x coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].x << std::endl;
-        std::cout << "Centroid y coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].y << std::endl;
-       std::cout << "Centroid x coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].x << std::endl;
-        std::cout << "Centroid y coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].y << std::endl;
-std::cout << "Centroid x coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].x << std::endl;
-        std::cout << "Centroid y coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].y << std::endl;
+/*     //Check if centroid has any obstacles before accessing to prevent segmentation fault
+if (!centroid.obstacles.empty() && centroid.obstacles.size() > 1)
+{
+  std::cout << "Centroid x coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].x << std::endl;
+  std::cout << "Centroid y coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].y << std::endl;
+  std::cout << "Centroid x coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].x << std::endl;
+  std::cout << "Centroid y coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].y << std::endl;
+  std::cout << "Centroid x coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].x << std::endl;
+  std::cout << "Centroid y coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].y << std::endl;
 
-std::cout << "Centroid x coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].x << std::endl;
-        std::cout << "Centroid y coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].y << std::endl;
+  std::cout << "Centroid x coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].x << std::endl;
+  std::cout << "Centroid y coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].y << std::endl;
+     
+
       //  std::cout << "X coordinate of robot: " << robot_pose_.pose.position.x << std::endl;
       //  std::cout << "Y coordinate of robot: " << robot_pose_.pose.position.y << std::endl;
         // calculate euclidean distance between robot origin and polygon 1 centroid
       //  std::cout << "Euclidean distance: " << euclideanDistance(centroid.obstacles[1].polygon.points[0].x, centroid.obstacles[1].polygon.points[0].y, robot_pose_.pose.position.x,robot_pose_.pose.position.y) << std::endl;
-    }
+    }*/
 
 
 
@@ -294,8 +321,13 @@ std::cout << "Centroid x coordinate of polygon 4: " << centroid.obstacles[4].pol
  {
     std::cout << "Closest centroid x coordinate: " << closest_centroid_it->pose.position.x << std::endl;
     std::cout << "Closest centroid y coordinate: " << closest_centroid_it->pose.position.y << std::endl;
+    double distance = euclideanDistance(closest_centroid_it->pose.position.x,closest_centroid_it->pose.position.y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
+    std::cout<<"Closest centroid eucl distance:"<<distance<<std::endl;
 
  }
+
+
+
 
   return centroid;
 }
@@ -352,6 +384,57 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
 //
       marker_pub_->publish(line_list);
 }
+
+
+
+costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
+const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+{
+
+  costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons;
+  double thresh = 1.0;
+
+  int index=0;
+
+  //polygon_centroids.obstacles.polygon.points - .points.x and .points.y
+  // obstacles.polygon.points[0].x and .points[0].y
+
+  // Iterate over each polygon in polygon_centroids.obstacles
+  for (const auto obstacle:polygon_centroids.obstacles)
+  {
+    // each polygon contains x,y points of its centroid
+    // compute the euclidean distance between robot's pose and centroid 
+
+
+
+    // get euclidean distance between current polygon's centroid and robot's pose
+    double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
+
+    // if the distance is below a threshold "thresh" then consider it and store it in a vector
+
+    if (distance < thresh)
+    {
+
+
+      // considered polygon is a vector that stores the value of current obstacle
+    //  considered_polygons.obstacles.push_back(obstacle);
+
+      considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+  
+
+
+
+    }
+    index++;
+  }
+  // Return the vector container with considered polygons below the threshold
+
+  std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
+  return considered_polygons;
+}
+
+
+
 
 
 void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose) 

@@ -90,6 +90,9 @@ class CustomController : public nav2_core::Controller
 
     costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
+    costmap_converter_msgs::msg::ObstacleArrayMsg  polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &poylgon_centroids, const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
+
+
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
     
