@@ -24,6 +24,7 @@
 
 #include "costmap_converter_msgs/msg/obstacle_msg.hpp"
 #include "costmap_converter/costmap_converter_interface.h"
+#include "costmap_converter/costmap_to_polygons.h"
 
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
@@ -132,6 +133,7 @@ class CustomController : public nav2_core::Controller
 
     pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
+    std::shared_ptr<costmap_converter::CostmapToPolygonsDBSMCCH> costmap_converter_polygons_;
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
     rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;

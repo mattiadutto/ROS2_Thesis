@@ -123,6 +123,7 @@ void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr 
       }
 
 
+
 // Publishers and Subscribers
 
 // being LifeCycle Publisher doesn't work needs to be rclcpp::Publisher!
@@ -147,10 +148,56 @@ void CustomController::timer_callback()
   // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
 
-  // tests 27/02 //////////////////////////////////////////////////////
 
-  costmap_converter::PolygonContainerConstPtr polygons = costmap_converter_->getPolygons();
- 
+
+  // tests 27/02 //////////////////////////////////////////////////////]
+
+ //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint (0.0, 0.0);
+
+ int minX = -1;
+ int maxX = 1;
+ int minY = -1;
+ int maxY = 1;
+ int resolution = 0.1;
+
+ std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect;
+
+ for (double x = minX; x <= maxX; x += resolution)
+ {
+
+  for (double y = minY; y <= maxY; y += resolution)
+  {
+
+    costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+
+    point.x = x;
+    point.y = y;
+    point_vect.push_back(point);
+
+  }
+ }
+
+geometry_msgs::msg::Polygon convex_hull;
+costmap_converter_polygons_ = std::make_shared<costmap_converter::CostmapToPolygonsDBSMCCH>();
+
+
+costmap_converter_polygons_->convexHull(point_vect,convex_hull);
+
+ // Create new polygon container
+  //  costmap_converter::PolygonContainerPtr polygons(new std::vector<geometry_msgs::msg::Polygon>());;
+
+
+   
+     // polygons->push_back( geometry_msgs::msg::Polygon() );
+   //   costmap_converter_polygons_->convexHull(point_vect, polygons->back() );
+    
+
+
+
+
+
+ /* costmap_converter::PolygonContainerConstPtr polygons = costmap_converter_->getPolygons();
+
   if (polygons && polygons->size() > 1) 
   {
     // Create a PolygonStamped message
@@ -174,10 +221,10 @@ void CustomController::timer_callback()
 
     polygon_stamped_msg.header.stamp = clock_->now(); // Set the header time
     polygon_stamped_msg.header.frame_id = "map";
-  
+
     polygon_pub_->publish(polygon_stamped_msg);
 
-  }
+  }*/
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -190,12 +237,95 @@ void CustomController::timer_callback()
 
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(*obstacles);
 
-   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,*obstacles);
+  costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,*obstacles);
 
+  costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
+
+
+
+/*
+  convex_hull_array.obstacles[0].polygon.points[0].x = 1.225;
+  convex_hull_array.obstacles[0].polygon.points[0].y = 0.975;
+
+  convex_hull_array.obstacles[0].polygon.points[1].x = 1.325;
+  convex_hull_array.obstacles[0].polygon.points[1].y = 1.425;
+
+  convex_hull_array.obstacles[1].polygon.points[0].x = 1.175;
+  convex_hull_array.obstacles[1].polygon.points[0].y = -0.225;
+
+convex_hull_array.obstacles[1].polygon.points[1].x = 1.175;
+convex_hull_array.obstacles[1].polygon.points[1].y = -0.775;
+
+convex_hull_array.obstacles[2].polygon.points[0].x = -0.325;
+convex_hull_array.obstacles[2].polygon.points[0].y = -1.175;
+
+
+convex_hull_array.obstacles[2].polygon.points[1].x = -0.925;
+convex_hull_array.obstacles[2].polygon.points[1].y = -1.225;
+
+convex_hull_array.obstacles[3].polygon.points[0].x = -1.425;
+convex_hull_array.obstacles[3].polygon.points[0].y = 0.875;
+
+convex_hull_array.obstacles[3].polygon.points[1].x = -0.825;
+convex_hull_array.obstacles[3].polygon.points[1].y = 0.825;
+
+convex_hull_array.obstacles[4].polygon.points[0].x = -1.375;
+convex_hull_array.obstacles[4].polygon.points[0].y = -0.225;
+
+convex_hull_array.obstacles[4].polygon.points[1].x = -1.425;
+convex_hull_array.obstacles[4].polygon.points[1].y = -0.475;*/
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// FOR VISUALIZING BOUNDED REGION
+
+/*std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect = {
+    {1.225, 0.975},
+    //{1.325, 1.425},
+    {1.175, -0.225},
+    {1.175, -0.775},
+    {-0.325, -1.175},
+    {-0.925, -1.225},
+    {-1.425, -0.475}, 
+    {-1.375, -0.225},
+     {-1.425, 0.875},
+    {-0.825, 0.825}
+};
+
+// Ensure the obstacle container has enough obstacles
+if (convex_hull_array.obstacles.empty()) {
+    convex_hull_array.obstacles.push_back(costmap_converter_msgs::msg::ObstacleMsg());
+}
+
+// Resize the points vector to accommodate all points
+convex_hull_array.obstacles[0].polygon.points.resize(point_vect.size());
+
+// Copy the points from point_vect to convex_hull_array.obstacles[0].polygon.points
+for (std::size_t i = 0; i < point_vect.size(); ++i) {
+    convex_hull_array.obstacles[0].polygon.points[i].x = point_vect[i].x;
+    convex_hull_array.obstacles[0].polygon.points[i].y = point_vect[i].y;
+}
+
+*/
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+
+    // Add the polygon_msg to convex_hull_array.obstacles.polygon
+  //  convex_hull_array.obstacles[0].polygon =convex_hull;
+
+// Create an instance of ObstacleMsg_ and populate it with the Polygon
+//costmap_converter_msgs::msg::ObstacleMsg obstacle_msg;
+//obstacle_msg.polygon = convex_hull;
+
+// Push the obstacle_msg into the vector
+//convex_hull_array.obstacles.push_back(obstacle_msg);
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
   //publishAsMarker(frame_id_, *obstacles);
 
-   publishAsMarker(frame_id_,considered_polygons);
+  publishAsMarker(frame_id_,considered_polygons);
+
+  //publishAsMarker(frame_id_,convex_hull_array);
 
 
 }
@@ -203,13 +333,13 @@ void CustomController::timer_callback()
 costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
 
-  
-
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid;
 
   // Clear centroid.obstacles at the beginning of the function
-    centroid.obstacles.clear();
+  centroid.obstacles.clear();
 
+//int index = 0;
+//int v_index = 0;
 
   for (const auto &obstacle:obstacles.obstacles)
   {
@@ -221,11 +351,20 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
 
 
+
+//std::cout<<"Vertices of obstacle "<<index<<":"<<std::endl;
+
     for (const auto &point:obstacle.polygon.points)
     {
 
       sum_x += point.x;
       sum_y += point.y;
+
+
+     // std::cout<<"Vertex "<<v_index<<"x = "<<point.x<<" y = "<<point.y<<std::endl;
+
+   //   v_index++;
+
 
     }
 
@@ -244,17 +383,20 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
     centroid.obstacles.push_back(centroid_of_obstacle); // Add the centroid of obstacle to the centroid obstacle array
 
 
+//index++;
+
   }
 
   centroid_path_msg_.poses.clear();
 
 
 // convert ObstacleArrayMsg to Path msg of the centroid
+
   for (const auto &obstacle : centroid.obstacles)
-{
-    
-    
-    
+  {
+
+
+
     // Set the header for the centroid pose stamped message
     centroid_pose_stamped_.header = obstacle.header;
 
@@ -264,70 +406,27 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
     
     // Push the centroid pose stamped message to centroid_path.poses
     centroid_path_msg_.poses.push_back(centroid_pose_stamped_);
-}
+  }
 
-  // print to console the vertices of polygon at index 1 and its centroid
- /*   double polygon_x,polygon_y;
-    int it=0;
-    if (obstacles.obstacles.size()>1)
+  // Find the closest centroid to the robot's pose
+
+  auto closest_centroid_it =
+  min_by(
+    centroid_path_msg_.poses.begin(), centroid_path_msg_.poses.end(),
+    [this](const geometry_msgs::msg::PoseStamped &ps)
     {
-    for (const auto &point : obstacles.obstacles[1].polygon.points)
-    {
-       std::cout << "X coordinate of vertex "<< it<<"of polygon 1: " << point.x << std::endl;
-       std::cout << "Y coordinate of vertex "<< it<<"of polygon 1: " << point.y << std::endl;
-       std::cout << "Centroid x coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].x << std::endl;
-       std::cout << "Centroid y coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].y << std::endl;
+      return euclidean_distance(robot_pose_, ps);
+    });
 
+  // Check if centroid path has any poses before accessing to prevent segmentation fault
+  if (!centroid_path_msg_.poses.empty() && closest_centroid_it != centroid_path_msg_.poses.end())
+  {
+   // std::cout << "Closest centroid x coordinate: " << closest_centroid_it->pose.position.x << std::endl;
+   // std::cout << "Closest centroid y coordinate: " << closest_centroid_it->pose.position.y << std::endl;
+   // double distance = euclideanDistance(closest_centroid_it->pose.position.x,closest_centroid_it->pose.position.y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
+   // std::cout<<"Closest centroid distance:"<<distance<<std::endl;
 
-       it++;
-
-    }*/
-
-  
-
-/*     //Check if centroid has any obstacles before accessing to prevent segmentation fault
-if (!centroid.obstacles.empty() && centroid.obstacles.size() > 1)
-{
-  std::cout << "Centroid x coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].x << std::endl;
-  std::cout << "Centroid y coordinate of polygon 1: " << centroid.obstacles[1].polygon.points[0].y << std::endl;
-  std::cout << "Centroid x coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].x << std::endl;
-  std::cout << "Centroid y coordinate of polygon 2: " << centroid.obstacles[2].polygon.points[0].y << std::endl;
-  std::cout << "Centroid x coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].x << std::endl;
-  std::cout << "Centroid y coordinate of polygon 3: " << centroid.obstacles[3].polygon.points[0].y << std::endl;
-
-  std::cout << "Centroid x coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].x << std::endl;
-  std::cout << "Centroid y coordinate of polygon 4: " << centroid.obstacles[4].polygon.points[0].y << std::endl;
-     
-
-      //  std::cout << "X coordinate of robot: " << robot_pose_.pose.position.x << std::endl;
-      //  std::cout << "Y coordinate of robot: " << robot_pose_.pose.position.y << std::endl;
-        // calculate euclidean distance between robot origin and polygon 1 centroid
-      //  std::cout << "Euclidean distance: " << euclideanDistance(centroid.obstacles[1].polygon.points[0].x, centroid.obstacles[1].polygon.points[0].y, robot_pose_.pose.position.x,robot_pose_.pose.position.y) << std::endl;
-    }*/
-
-
-
-    // Find the closest pose on the path to the robot
-       auto closest_centroid_it =
-       min_by(
-          centroid_path_msg_.poses.begin(), centroid_path_msg_.poses.end(),
-          [this](const geometry_msgs::msg::PoseStamped &ps)
-          {
-            return euclidean_distance(robot_pose_, ps);
-          });
-
-// Check if centroid path has any poses before accessing to prevent segmentation fault
- if (!centroid_path_msg_.poses.empty() && closest_centroid_it != centroid_path_msg_.poses.end())
- {
-    std::cout << "Closest centroid x coordinate: " << closest_centroid_it->pose.position.x << std::endl;
-    std::cout << "Closest centroid y coordinate: " << closest_centroid_it->pose.position.y << std::endl;
-    double distance = euclideanDistance(closest_centroid_it->pose.position.x,closest_centroid_it->pose.position.y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
-    std::cout<<"Closest centroid eucl distance:"<<distance<<std::endl;
-
- }
-
-
-
+  }
 
   return centroid;
 }
@@ -343,7 +442,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
   line_list.id = 0;
   line_list.type = visualization_msgs::msg::Marker::LINE_LIST; //line list type 
 
-  line_list.scale.x = 0.1;
+  line_list.scale.x = 0.02;
   line_list.color.g = 1.0;
   line_list.color.a = 1.0;
 
@@ -385,7 +484,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
       marker_pub_->publish(line_list);
 }
 
-
+//// NB combine polygon_filter and computeCentroid to be filterPolygons function !!!!
 
 costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
 const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
@@ -396,39 +495,27 @@ const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 
   int index=0;
 
-  //polygon_centroids.obstacles.polygon.points - .points.x and .points.y
-  // obstacles.polygon.points[0].x and .points[0].y
 
   // Iterate over each polygon in polygon_centroids.obstacles
   for (const auto obstacle:polygon_centroids.obstacles)
   {
-    // each polygon contains x,y points of its centroid
-    // compute the euclidean distance between robot's pose and centroid 
-
-
+    
 
     // get euclidean distance between current polygon's centroid and robot's pose
     double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
 
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
-
     if (distance < thresh)
     {
 
-
-      // considered polygon is a vector that stores the value of current obstacle
-    //  considered_polygons.obstacles.push_back(obstacle);
-
+      // store in considered_polygon the obstacle to which the computed centroid refers to
       considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
-  
-
-
 
     }
+
     index++;
   }
   // Return the vector container with considered polygons below the threshold
-
   std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
   return considered_polygons;
 }
@@ -441,11 +528,8 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 {
 
 
-
   robot_pose_.pose.position.x = amcl_pose.pose.pose.position.x;
   robot_pose_.pose.position.y = amcl_pose.pose.pose.position.y;
-
-
 }
 
 

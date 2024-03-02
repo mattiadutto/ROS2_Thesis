@@ -171,6 +171,36 @@ class CostmapToPolygonsDBSMCCH : public BaseCostmapToPolygons
      */
     PolygonContainerConstPtr getPolygons();
 
+    // NB!!! THIS FUNCTIONS WERE PROTECTED BEFORE, SO I HAVE PUT IT HERE FOR TESTING PURPOSES !
+    /**
+     * @brief Compute the convex hull for a single cluster (monotone chain algorithm)
+     * 
+     * Clusters are converted into convex polgons using the monotone chain algorithm aka Andrew's algorithm:
+     *    C++ implementation example: http://www.algorithmist.com/index.php/Monotone_Chain_Convex_Hull ( GNU Free Documentation License 1.2 )
+     *    Reference:  A. M. Andrew, "Another Efficient Algorithm for Convex Hulls in Two Dimensions", Info. Proc. Letters 9, 216-219 (1979).
+     * @remarks The algorithm seems to cut edges, thus we give a try to convexHull2().
+     * @todo Evaluate and figure out whether convexHull() or convexHull2() is better suited (performance, quality, ...)
+     * @remarks The last point is the same as the first one
+     * @param cluster list of keypoints that should be converted into a polygon
+     * @param[out] polygon the resulting convex polygon
+     */  
+    void convexHull(std::vector<KeyPoint>& cluster, geometry_msgs::msg::Polygon& polygon);
+
+      /**
+     * @brief Compute the convex hull for a single cluster
+     * 
+     * Clusters are converted into convex polgons using an algorithm provided here:
+     *  https://bitbucket.org/vostreltsov/concave-hull/overview
+     * The convex hull algorithm is part of the concave hull algorithm.
+     * The license is WTFPL 2.0 and permits any usage.
+     * 
+     * @remarks The last point is the same as the first one
+     * @param cluster list of keypoints that should be converted into a polygon
+     * @param[out] polygon the resulting convex polygon
+     * @todo Evaluate and figure out whether convexHull() or convexHull2() is better suited (performance, quality, ...)
+     */  
+    void convexHull2(std::vector<KeyPoint>& cluster, geometry_msgs::msg::Polygon& polygon);
+
     
     
   protected:
@@ -210,34 +240,9 @@ class CostmapToPolygonsDBSMCCH : public BaseCostmapToPolygons
         neighbor_lookup_[nidx].push_back(idx);
     }
     
-    /**
-     * @brief Compute the convex hull for a single cluster (monotone chain algorithm)
-     * 
-     * Clusters are converted into convex polgons using the monotone chain algorithm aka Andrew's algorithm:
-     *    C++ implementation example: http://www.algorithmist.com/index.php/Monotone_Chain_Convex_Hull ( GNU Free Documentation License 1.2 )
-     *    Reference:  A. M. Andrew, "Another Efficient Algorithm for Convex Hulls in Two Dimensions", Info. Proc. Letters 9, 216-219 (1979).
-     * @remarks The algorithm seems to cut edges, thus we give a try to convexHull2().
-     * @todo Evaluate and figure out whether convexHull() or convexHull2() is better suited (performance, quality, ...)
-     * @remarks The last point is the same as the first one
-     * @param cluster list of keypoints that should be converted into a polygon
-     * @param[out] polygon the resulting convex polygon
-     */  
-    void convexHull(std::vector<KeyPoint>& cluster, geometry_msgs::msg::Polygon& polygon);
     
-    /**
-     * @brief Compute the convex hull for a single cluster
-     * 
-     * Clusters are converted into convex polgons using an algorithm provided here:
-     *  https://bitbucket.org/vostreltsov/concave-hull/overview
-     * The convex hull algorithm is part of the concave hull algorithm.
-     * The license is WTFPL 2.0 and permits any usage.
-     * 
-     * @remarks The last point is the same as the first one
-     * @param cluster list of keypoints that should be converted into a polygon
-     * @param[out] polygon the resulting convex polygon
-     * @todo Evaluate and figure out whether convexHull() or convexHull2() is better suited (performance, quality, ...)
-     */  
-    void convexHull2(std::vector<KeyPoint>& cluster, geometry_msgs::msg::Polygon& polygon);
+    
+  
 
     /**
      * @brief Simplify a polygon by removing points.
