@@ -1,0 +1,99 @@
+[0.156s] Invoking command in '/home/garabetov/scout_mpc/src/costmap_test/build/costmap_test': CMAKE_PREFIX_PATH=/home/garabetov/scout_mpc/install/scout_base:/home/garabetov/scout_mpc/install/nmea_navsat_driver:/home/garabetov/scout_working/install/nmea_navsat_driver:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_example:/opt/ros/humble:/home/garabetov/scout_mpc/install/ugv_sdk:/home/garabetov/scout_mpc/install/scout_navigation:/home/garabetov/scout_mpc/install/scout_msgs:/home/garabetov/scout_mpc/install/scout_gazebo_sim:/home/garabetov/scout_mpc/install/scout_description:/home/garabetov/scout_mpc/install/rplidar_ros2:/home/garabetov/scout_mpc/install/nav2_custom_controller:/home/garabetov/scout_mpc/install/costmap_converter:/home/garabetov/scout_mpc/install/nav2_costmap_2d:/home/garabetov/scout_mpc/install/costmap_test:/home/garabetov/scout_mpc/install/costmap_converter_msgs:/home/garabetov/scout_working/install/scout_base:/home/garabetov/scout_working/install/ugv_sdk:/home/garabetov/scout_working/install/scout_navigation:/home/garabetov/scout_working/install/scout_msgs:/home/garabetov/scout_working/install/scout_gazebo_sim:/home/garabetov/scout_working/install/scout_description:/home/garabetov/scout_working/install/rplidar_ros2:/home/garabetov/scout_working/install/nav2_custom_controller:/home/garabetov/scout_working/install/costmap_converter:/home/garabetov/scout_working/install/nav2_costmap_2d:/home/garabetov/scout_working/install/costmap_test:/home/garabetov/scout_working/install/costmap_converter_msgs:/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk /usr/bin/cmake /home/garabetov/scout_mpc/src/costmap_test -DCMAKE_INSTALL_PREFIX=/home/garabetov/scout_mpc/src/costmap_test/install/costmap_test
+[0.176s] -- Found ament_cmake: 1.3.5 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.382s] [33mCMake Warning (dev) at /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:438 (message):
+[0.382s]   The package name passed to `find_package_handle_standard_args` (PkgConfig)
+[0.382s]   does not match the name of the calling package (gazebo).  This can lead to
+[0.382s]   problems in calling code that expects `find_package` result variables
+[0.382s]   (e.g., `_FOUND`) to follow a certain pattern.
+[0.382s] Call Stack (most recent call first):
+[0.382s]   /usr/share/cmake-3.22/Modules/FindPkgConfig.cmake:99 (find_package_handle_standard_args)
+[0.383s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:72 (include)
+[0.383s]   CMakeLists.txt:10 (find_package)
+[0.383s] This warning is for project developers.  Use -Wno-dev to suppress it.
+[0.383s] [0m
+[0.409s] -- Found DART: /usr/include (Required is at least version "6.6") found components: dart 
+[0.446s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so (found version "3.12.4") 
+[0.448s] -- Looking for ignition-math6 -- found version 6.15.0
+[0.452s] -- Searching for dependencies of ignition-math6
+[0.454s] -- Looking for OGRE...
+[0.460s] -- Found Ogre Ghadamon (1.9.0)
+[0.460s] -- Found OGRE: optimized;/usr/lib/x86_64-linux-gnu/libOgreMain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreMain.so
+[0.471s] -- Looking for OGRE_Paging...
+[0.471s] -- Found OGRE_Paging: optimized;/usr/lib/x86_64-linux-gnu/libOgrePaging.so;debug;/usr/lib/x86_64-linux-gnu/libOgrePaging.so
+[0.472s] -- Looking for OGRE_Terrain...
+[0.472s] -- Found OGRE_Terrain: optimized;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so
+[0.472s] -- Looking for OGRE_Property...
+[0.472s] -- Found OGRE_Property: optimized;/usr/lib/x86_64-linux-gnu/libOgreProperty.so;debug;/usr/lib/x86_64-linux-gnu/libOgreProperty.so
+[0.472s] -- Looking for OGRE_RTShaderSystem...
+[0.472s] -- Found OGRE_RTShaderSystem: optimized;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so;debug;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so
+[0.472s] -- Looking for OGRE_Volume...
+[0.472s] -- Found OGRE_Volume: optimized;/usr/lib/x86_64-linux-gnu/libOgreVolume.so;debug;/usr/lib/x86_64-linux-gnu/libOgreVolume.so
+[0.472s] -- Looking for OGRE_Overlay...
+[0.472s] -- Found OGRE_Overlay: optimized;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so;debug;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so
+[0.808s] -- Looking for ignition-math6 -- found version 6.15.0
+[0.809s] -- Looking for ignition-transport8 -- found version 8.2.1
+[0.809s] -- Searching for dependencies of ignition-transport8
+[0.835s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so (found suitable version "3.12.4", minimum required is "3") 
+[0.852s] -- Config-file not installed for ZeroMQ -- checking for pkg-config
+[0.858s] -- Checking for module 'libzmq >= 4'
+[0.879s] --   Found libzmq , version 4.3.4
+[0.936s] -- Checking for module 'uuid'
+[0.956s] --   Found uuid, version 2.37.2
+[1.001s] -- Looking for ignition-msgs5 -- found version 5.8.1
+[1.001s] -- Searching for dependencies of ignition-msgs5
+[1.029s] -- Looking for ignition-math6 -- found version 6.15.0
+[1.036s] -- Checking for module 'tinyxml2'
+[1.056s] --   Found tinyxml2, version 9.0.0
+[1.103s] -- Looking for ignition-msgs5 -- found version 5.8.1
+[1.103s] -- Looking for ignition-common3 -- found version 3.14.0
+[1.104s] -- Searching for dependencies of ignition-common3
+[1.104s] -- Looking for dlfcn.h - found
+[1.104s] -- Looking for libdl - found
+[1.118s] -- Searching for <ignition-common3> component [graphics]
+[1.118s] -- Looking for ignition-common3-graphics -- found version 3.14.0
+[1.119s] -- Searching for dependencies of ignition-common3-graphics
+[1.119s] -- Looking for ignition-math6 -- found version 6.15.0
+[1.120s] -- Looking for ignition-fuel_tools4 -- found version 4.4.0
+[1.121s] -- Searching for dependencies of ignition-fuel_tools4
+[1.176s] -- Checking for module 'jsoncpp'
+[1.197s] --   Found jsoncpp, version 1.9.5
+[1.252s] -- Checking for module 'libzip'
+[1.272s] --   Found libzip, version 1.7.3
+[1.318s] -- Looking for ignition-common3 -- found version 3.14.0
+[1.318s] -- Looking for ignition-math6 -- found version 6.15.0
+[1.319s] -- Looking for ignition-msgs5 -- found version 5.8.1
+[1.321s] -- Found gazebo_ros_pkgs: 3.7.0 (/opt/ros/humble/share/gazebo_ros_pkgs/cmake)
+[1.321s] -- Found geometry_msgs: 4.2.3 (/opt/ros/humble/share/geometry_msgs/cmake)
+[1.347s] -- Found rosidl_generator_c: 3.1.5 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.350s] -- Found rosidl_adapter: 3.1.5 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.358s] -- Found rosidl_generator_cpp: 3.1.5 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.373s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.394s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.538s] -- Found nav_msgs: 4.2.3 (/opt/ros/humble/share/nav_msgs/cmake)
+[1.636s] -- Found rclcpp: 16.0.6 (/opt/ros/humble/share/rclcpp/cmake)
+[1.694s] -- Found rmw_implementation_cmake: 6.1.1 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[1.697s] -- Found rmw_fastrtps_cpp: 6.2.4 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[1.919s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[2.214s] -- Found sensor_msgs: 4.2.3 (/opt/ros/humble/share/sensor_msgs/cmake)
+[2.410s] -- Found tf2: 0.25.4 (/opt/ros/humble/share/tf2/cmake)
+[2.420s] -- Found tf2_ros: 0.25.5 (/opt/ros/humble/share/tf2_ros/cmake)
+[2.829s] -- Found tf2_geometry_msgs: 0.25.5 (/opt/ros/humble/share/tf2_geometry_msgs/cmake)
+[2.837s] -- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+[2.840s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[2.860s] -- Found nav2_common: 1.1.12 (/opt/ros/humble/share/nav2_common/cmake)
+[2.860s] -- Found nav2_core: 1.1.12 (/opt/ros/humble/share/nav2_core/cmake)
+[11.908s] [0mCMAKE_MODULE_PATH: /opt/ros/humble/share/tinyxml2_vendor/cmake/Modules;/opt/ros/humble/share/eigen3_cmake_module/cmake/Modules;/opt/ros/humble/share/fastrtps_cmake_module/cmake/Modules;/usr/share/OGRE/cmake/modules;/usr/lib/OGRE/cmake;/usr/CMake;;/usr/share/cmake/ignition-cmake2/cmake2[0m
+[12.007s] -- Configuring done
+[12.060s] -- Generating done
+[12.063s] -- Build files have been written to: /home/garabetov/scout_mpc/src/costmap_test
+[12.081s] Invoked command in '/home/garabetov/scout_mpc/src/costmap_test/build/costmap_test' returned '0': CMAKE_PREFIX_PATH=/home/garabetov/scout_mpc/install/scout_base:/home/garabetov/scout_mpc/install/nmea_navsat_driver:/home/garabetov/scout_working/install/nmea_navsat_driver:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_example:/opt/ros/humble:/home/garabetov/scout_mpc/install/ugv_sdk:/home/garabetov/scout_mpc/install/scout_navigation:/home/garabetov/scout_mpc/install/scout_msgs:/home/garabetov/scout_mpc/install/scout_gazebo_sim:/home/garabetov/scout_mpc/install/scout_description:/home/garabetov/scout_mpc/install/rplidar_ros2:/home/garabetov/scout_mpc/install/nav2_custom_controller:/home/garabetov/scout_mpc/install/costmap_converter:/home/garabetov/scout_mpc/install/nav2_costmap_2d:/home/garabetov/scout_mpc/install/costmap_test:/home/garabetov/scout_mpc/install/costmap_converter_msgs:/home/garabetov/scout_working/install/scout_base:/home/garabetov/scout_working/install/ugv_sdk:/home/garabetov/scout_working/install/scout_navigation:/home/garabetov/scout_working/install/scout_msgs:/home/garabetov/scout_working/install/scout_gazebo_sim:/home/garabetov/scout_working/install/scout_description:/home/garabetov/scout_working/install/rplidar_ros2:/home/garabetov/scout_working/install/nav2_custom_controller:/home/garabetov/scout_working/install/costmap_converter:/home/garabetov/scout_working/install/nav2_costmap_2d:/home/garabetov/scout_working/install/costmap_test:/home/garabetov/scout_working/install/costmap_converter_msgs:/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk /usr/bin/cmake /home/garabetov/scout_mpc/src/costmap_test -DCMAKE_INSTALL_PREFIX=/home/garabetov/scout_mpc/src/costmap_test/install/costmap_test
+[12.443s] Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/colcon_core/executor/__init__.py", line 91, in __call__
+    rc = await self.task(*args, **kwargs)
+  File "/usr/lib/python3/dist-packages/colcon_core/task/__init__.py", line 93, in __call__
+    return await task_method(*args, **kwargs)
+  File "/usr/lib/python3/dist-packages/colcon_ros/task/ament_cmake/build.py", line 65, in build
+    has_install_target = await has_target(args.build_base, 'install')
+  File "/usr/lib/python3/dist-packages/colcon_cmake/task/cmake/__init__.py", line 56, in has_target
+    if 'Unix Makefiles' in generator:
+TypeError: argument of type 'NoneType' is not iterable
