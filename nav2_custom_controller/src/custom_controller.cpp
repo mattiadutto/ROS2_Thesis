@@ -57,6 +57,10 @@ auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
 CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
 {
 
+
+
+   
+
 }
 
 void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
@@ -122,6 +126,34 @@ void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr 
         costmap_converter_.reset();
       }
 
+       
+
+
+
+      double minX = -1;
+      double maxX = 1;
+      double minY = -1;
+      double maxY = 1;
+      double resolution = 0.5;
+
+      point_vect_.reserve(1000);
+
+
+      for (double x = minX; x <= maxX; x += resolution)
+      {
+
+        for (double y = minY; y <= maxY; y += resolution)
+        {
+
+          costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+
+          point.x = x;
+          point.y = y;
+          point_vect_.push_back(point);
+
+        }
+      }
+
 
 
 // Publishers and Subscribers
@@ -132,12 +164,20 @@ void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr 
   polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
 
   marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
+
+  grid_pub_ = node->create_publisher<nav_msgs::msg::GridCells>("transformed_pub",10);
+
+  tf_pub_ = node->create_publisher<geometry_msgs::msg::TransformStamped>("tf_pub",10);
+
   // Create a lifecycle wall timer with a callback function
 
 //call timer_callback() every 1 second
   wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
 
   pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
+ 
+// costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
+
 
 
 }
@@ -148,40 +188,96 @@ void CustomController::timer_callback()
   // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
 
+  geometry_msgs::msg::TransformStamped test;
+
+  nav_msgs::msg::GridCells transformed_grid; 
+
+  try
+  { 
+
+   test = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
+
+
+     //   transformStamped = tf_buffer->lookupTransform("base_link", "map", tf2::TimePointZero);
+
+    try {
+
+            for( const auto& point : point_vect_)
+            {
+            // Create a point stamped in the target frame
+            geometry_msgs::msg::PointStamped point_in, point_out;
+            geometry_msgs::msg::Point not_stamped;
+
+            point_in.point.x = point.x;
+            point_in.point.y = point.y;
+            point_in.header.frame_id = "map";  // Replace "original_frame" with the frame of your points
+
+            tf_->transform(point_in, point_out, "base_link",tf2::Duration(std::chrono::seconds(5)));
+         //  std::cout<<"not transformed grid x"<< point_stamped_in.point.x<<std::endl;
+
+        //   std::cout<<"transformed x to base_link"<< point_stamped_out.point.x<<std::endl;
+
+            not_stamped = point_out.point;
+
+
+            transformed_grid.cells.push_back(not_stamped);
+          }
+
+          } catch (tf2::TransformException& ex) 
+          {
+           RCLCPP_WARN(rclcpp::get_logger("TF"), "Failed to transform point to target frame: %s", ex.what());
+          }
+        
+
+
+  } catch (tf2::LookupException &ex)
+  {
+ //   RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Deactivating Controller!");
+    RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
+  }
+
+
+  grid_pub_->publish(transformed_grid);
+  tf_pub_->publish(test);
+
+  /* // Transform each point in the vector to the target frame
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> transformed_points;
+  for (const auto& point : point_vect_) {
+    try {
+            // Create a point stamped in the target frame
+            geometry_msgs::msg::PointStamped point_stamped_in, point_stamped_out;
+            point_stamped_in.point.x = point.x;
+            point_stamped_in.point.y = point.y;
+            point_stamped_in.header.frame_id = "map";  // Replace "original_frame" with the frame of your points
+
+            tf_->transform(point_stamped_in, point_stamped_out, "base_link",tf2::Duration(std::chrono::seconds(5)));
+
+            // Create a new KeyPoint with transformed coordinates
+            costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
+            transformed_point.x = point_stamped_out.point.x;
+            transformed_point.y = point_stamped_out.point.y;
+            transformed_points.push_back(transformed_point);
+          } catch (tf2::TransformException& ex) {
+           RCLCPP_WARN(rclcpp::get_logger("TF"), "Failed to transform point to target frame: %s", ex.what());
+          }
+        }
+*/
+
+
+
+
 
 
   // tests 27/02 //////////////////////////////////////////////////////]
 
  //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint (0.0, 0.0);
 
- int minX = -1;
- int maxX = 1;
- int minY = -1;
- int maxY = 1;
- int resolution = 0.1;
-
- std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect;
-
- for (double x = minX; x <= maxX; x += resolution)
- {
-
-  for (double y = minY; y <= maxY; y += resolution)
-  {
-
-    costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
-
-    point.x = x;
-    point.y = y;
-    point_vect.push_back(point);
-
-  }
- }
-
-geometry_msgs::msg::Polygon convex_hull;
-costmap_converter_polygons_ = std::make_shared<costmap_converter::CostmapToPolygonsDBSMCCH>();
 
 
-costmap_converter_polygons_->convexHull(point_vect,convex_hull);
+  geometry_msgs::msg::Polygon convex_hull;
+ 
+
+  //costmap_converter_polygons_.convexHullWrapper(point_vect_,convex_hull);
 
  // Create new polygon container
   //  costmap_converter::PolygonContainerPtr polygons(new std::vector<geometry_msgs::msg::Polygon>());;
@@ -230,7 +326,7 @@ costmap_converter_polygons_->convexHull(point_vect,convex_hull);
 ///////////////////////////////////////////////////////////////////////
 
   // publish as ObstacleArrayMsg to costmap_obstacles topic
-  obstacle_pub_->publish(*obstacles);
+//  obstacle_pub_->publish(*obstacles);
 
   // get the global frame 
   std::string frame_id_ = costmap_ros_->getGlobalFrameID();
@@ -240,6 +336,21 @@ costmap_converter_polygons_->convexHull(point_vect,convex_hull);
   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,*obstacles);
 
   costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
+
+/*  for (const auto& key_point : transformed_points) {
+    geometry_msgs::msg::Point32 point;
+    point.x = key_point.x;
+    point.y = key_point.y;
+   // point.z = 0.0;  // Assuming z-coordinate is 0
+
+    convex_hull_array.obstacles[0].polygon.points.push_back(point);
+}*/
+
+
+//std::cout<<"not transformed x:"<<point_vect_[0].x<<std::endl;
+//std::cout<<" transformed x:"<<transformed_points[0].x<<std::endl;
+
+
 
 
 
@@ -323,12 +434,13 @@ for (std::size_t i = 0; i < point_vect.size(); ++i) {
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
   //publishAsMarker(frame_id_, *obstacles);
 
-  publishAsMarker(frame_id_,considered_polygons);
+//  publishAsMarker(frame_id_,considered_polygons);
 
-  //publishAsMarker(frame_id_,convex_hull_array);
+ // publishAsMarker(frame_id_,convex_hull_array);
 
 
 }
+
 
 costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {

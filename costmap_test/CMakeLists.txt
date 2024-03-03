@@ -20,6 +20,7 @@ find_package(nav2_common REQUIRED)
 find_package(nav2_core REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(costmap_converter REQUIRED)
 
 ################################################################################
 # Build
@@ -44,6 +45,7 @@ set(dependencies
   "nav2_costmap_2d"
   "nav2_util"
   "nav2_core"
+  "costmap_converter"
   
 )
 
@@ -62,9 +64,10 @@ install(TARGETS ${EXEC_NAME}
 
 
 
-
 ################################################################################
 # Macro for ament package
 ################################################################################
 
 ament_package()
+
+

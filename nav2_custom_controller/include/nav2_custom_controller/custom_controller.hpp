@@ -28,6 +28,7 @@
 
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include "nav_msgs/msg/grid_cells.hpp"
 
 
 
@@ -106,8 +107,14 @@ class CustomController : public nav2_core::Controller
     std::shared_ptr<tf2_ros::Buffer> tf_;
     std::string plugin_name_;
     std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
+
     rclcpp::Logger logger_{rclcpp::get_logger("CustomController")};
     rclcpp::Clock::SharedPtr clock_;
+
+    //std::unique_ptr<costmap_converter::CostmapToPolygonsDBSMCCH> costmap_converter_polygons_;
+
+  //  costmap_converter::CostmapToPolygonsDBSMCCH* costmap_converter_polygons_;
+
 
     rclcpp::Node::SharedPtr intra_proc_node_;
 
@@ -133,14 +140,20 @@ class CustomController : public nav2_core::Controller
 
     pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
-    std::shared_ptr<costmap_converter::CostmapToPolygonsDBSMCCH> costmap_converter_polygons_;
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
     rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
+     rclcpp::Publisher<nav_msgs::msg::GridCells>::SharedPtr grid_pub_;
+     rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr tf_pub_;
+
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
  
     rclcpp::TimerBase::SharedPtr wall_timer_;
+
+     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+
+
 
 
 
