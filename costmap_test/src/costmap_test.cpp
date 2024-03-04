@@ -60,6 +60,7 @@ void GoalPose::localCostmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPt
 
   local_costmap = *msg; // dereference and store in private variable the occupancy grid
 
+
   // create a grid that moves with the robot's base_link
   std::vector<geometry_msgs::msg::Point> grid;
 
