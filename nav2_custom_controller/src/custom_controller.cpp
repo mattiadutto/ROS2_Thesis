@@ -16,31 +16,31 @@ namespace nav2_custom_controller
 // according to a provided comparison value obtained through the 'getCompareVal' function thas it passed.
 // The 'getCompareVal' function is a getter function that extracts the comparison value from an element.
 template <typename Iter, typename Getter>
-Iter min_by(Iter begin, Iter end, Getter getCompareVal)
-{
-  // Check if the range is empty. If so, return the 'end' iterator.
-  if (begin == end)
+  Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   {
-    return end;
-  }
+  // Check if the range is empty. If so, return the 'end' iterator.
+    if (begin == end)
+    {
+      return end;
+    }
 
   // Initialize variables to store the lowest comparison value and its corresponding iterator.
-  auto lowest = getCompareVal(*begin);
-  Iter lowest_it = begin;
+    auto lowest = getCompareVal(*begin);
+    Iter lowest_it = begin;
   // Iterate over the range starting from the second element.
-  for (Iter it = ++begin; it != end; ++it)
-  {
-    // Obtain the comparison value for the current element.
-    auto comp = getCompareVal(*it);
-    if (comp < lowest)
+    for (Iter it = ++begin; it != end; ++it)
     {
-      lowest = comp;
-      lowest_it = it;
+    // Obtain the comparison value for the current element.
+      auto comp = getCompareVal(*it);
+      if (comp < lowest)
+      {
+        lowest = comp;
+        lowest_it = it;
+      }
     }
-  }
   // Return the iterator pointing to the element with the minimum comparison value.
-  return lowest_it;
-}
+    return lowest_it;
+  }
 
 
 
@@ -50,138 +50,106 @@ Iter min_by(Iter begin, Iter end, Getter getCompareVal)
 
 
 // Define a lambda function for calculating Euclidean distance
-auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
+  auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
     return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
-};
+  };
 
 
-CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
-{
+  CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
+  {
 
 
 
-   
 
-}
 
-void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+  }
+
+  void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
     std::string name, const std::shared_ptr<tf2_ros::Buffer>  tf,
     const std::shared_ptr<nav2_costmap_2d::Costmap2DROS>  costmap_ros)
-{
+  {
 
-  node_ = parent;
+    node_ = parent;
 
-  auto node = node_.lock();
+    auto node = node_.lock();
 
-  costmap_ros_ = costmap_ros;
-  tf_ = tf;
-  plugin_name_ = name;
-  logger_ = node->get_logger(); 
-  clock_ = node->get_clock();
+    costmap_ros_ = costmap_ros;
+    tf_ = tf;
+    plugin_name_ = name;
+    logger_ = node->get_logger(); 
+    clock_ = node->get_clock();
 
-  // create new instance of rclcpp:Node with name: costmap_converter
-  intra_proc_node_.reset(new rclcpp::Node("costmap_converter", node->get_namespace(), rclcpp::NodeOptions()));
+    // create new instance of rclcpp:Node with name: costmap_converter
+    intra_proc_node_.reset(new rclcpp::Node("costmap_converter", node->get_namespace(), rclcpp::NodeOptions()));
 
-  // asign the costmap as a pointer costmap_
-  costmap_ = costmap_ros_->getCostmap();
+    // asign the costmap as a pointer costmap_
+    costmap_ = costmap_ros_->getCostmap();
 
-// Parameter declaration 
-  declare_parameter_if_not_declared(
-    node, plugin_name_ + ".costmap_converter_plugin", rclcpp::ParameterValue("costmap_converter::CostmapToLinesDBSRANSAC"));
- 
-  declare_parameter_if_not_declared(
-    node, plugin_name_ + ".costmap_converter_rate", rclcpp::ParameterValue(5));
+    // Parameter declaration 
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".costmap_converter_plugin", rclcpp::ParameterValue("costmap_converter::CostmapToLinesDBSRANSAC"));
 
-  declare_parameter_if_not_declared(
-    node, plugin_name_ + ".odom_topic", rclcpp::ParameterValue(""));
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".costmap_converter_rate", rclcpp::ParameterValue(5));
 
-// Set parameters from yaml file
-  node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
-  node->get_parameter(plugin_name_ + ".costmap_converter_rate",costmap_converter_rate_); 
-  node->get_parameter(plugin_name_ + ".odom_topic",odom_topic_);
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".odom_topic", rclcpp::ParameterValue(""));
+
+    // Set parameters from yaml file
+    node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
+    node->get_parameter(plugin_name_ + ".costmap_converter_rate",costmap_converter_rate_); 
+    node->get_parameter(plugin_name_ + ".odom_topic",odom_topic_);
 
 
 
-// costmap_converter plugin load
-  try
-      {
+    // costmap_converter plugin load
+    try
+    {
         // load the plugin
-        costmap_converter_ = costmap_converter_loader_.createSharedInstance(costmap_converter_plugin_);
+      costmap_converter_ = costmap_converter_loader_.createSharedInstance(costmap_converter_plugin_);
         // set odom topic
-        costmap_converter_->setOdomTopic(odom_topic_);
+      costmap_converter_->setOdomTopic(odom_topic_);
         // initialize costmap_converter by passing nodehandle
-        costmap_converter_->initialize(intra_proc_node_);
+      costmap_converter_->initialize(intra_proc_node_);
         // pass a pointer to the costmap
-        costmap_converter_->setCostmap2D(costmap_);
+      costmap_converter_->setCostmap2D(costmap_);
         // set the rate of the plugin (it must not be much higher than costmap update rate)
-        const auto rate = std::make_shared<rclcpp::Rate>((double)costmap_converter_rate_);
+      const auto rate = std::make_shared<rclcpp::Rate>((double)costmap_converter_rate_);
         // convert most recent costmap to polygons with startWroker() method
         // it also invoke compute() method of the loaded plugin that does the conversion to polygons/lines
-        costmap_converter_->startWorker(rate, costmap_, "True");
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Costmap conversion plugin %s loaded.", costmap_converter_plugin_.c_str());
-      }
-      catch(pluginlib::PluginlibException& ex)
-      {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"),
-                    "The specified costmap converter plugin cannot be loaded. All occupied costmap cells are treaten as point obstacles. Error message: %s", ex.what());
-        costmap_converter_.reset();
-      }
-
-       
+      costmap_converter_->startWorker(rate, costmap_, "True");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Costmap conversion plugin %s loaded.", costmap_converter_plugin_.c_str());
+    }
+    catch(pluginlib::PluginlibException& ex)
+    {
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"),
+        "The specified costmap converter plugin cannot be loaded. All occupied costmap cells are treaten as point obstacles. Error message: %s", ex.what());
+      costmap_converter_.reset();
+    }
 
 
+    // Publishers and Subscribers
 
-      double minX = -1;
-      double maxX = 1;
-      double minY = -1;
-      double maxY = 1;
-      double resolution = 0.5;
+    obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 1);
 
-      point_vect_.reserve(1000);
+    polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
 
+    marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
 
-      for (double x = minX; x <= maxX; x += resolution)
-      {
+    tf_pub_ = node->create_publisher<geometry_msgs::msg::TransformStamped>("tf_pub",10);
 
-        for (double y = minY; y <= maxY; y += resolution)
-        {
+    // Create a lifecycle wall timer with a callback function
 
-          costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+    //call timer_callback() every 1 second
+    wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
 
-          point.x = x;
-          point.y = y;
-          point_vect_.push_back(point);
+    pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
-        }
-      }
+    // costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
 
 
 
-// Publishers and Subscribers
-
-// being LifeCycle Publisher doesn't work needs to be rclcpp::Publisher!
-  obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 1);
-
-  polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
-
-  marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
-
-  grid_pub_ = node->create_publisher<nav_msgs::msg::GridCells>("transformed_pub",10);
-
-  tf_pub_ = node->create_publisher<geometry_msgs::msg::TransformStamped>("tf_pub",10);
-
-  // Create a lifecycle wall timer with a callback function
-
-//call timer_callback() every 1 second
-  wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
-
-  pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
- 
-// costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
-
-
-
-}
+  }
 
 void CustomController::timer_callback()
 {
@@ -189,145 +157,21 @@ void CustomController::timer_callback()
   // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
 
-  geometry_msgs::msg::TransformStamped test;
-
-  nav_msgs::msg::GridCells transformed_grid; 
+  geometry_msgs::msg::TransformStamped received_tf;
 
   try
   { 
 
-   test = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
-
-
-     //   transformStamped = tf_buffer->lookupTransform("base_link", "map", tf2::TimePointZero);
-
-    try {
-
-            for( const auto& point : point_vect_)
-            {
-            // Create a point stamped in the target frame
-            geometry_msgs::msg::PointStamped point_in, point_out;
-            geometry_msgs::msg::Point not_stamped;
-
-            point_in.point.x = point.x;
-            point_in.point.y = point.y;
-            point_in.header.frame_id = "map";  // Replace "original_frame" with the frame of your points
-
-            tf_->transform(point_in, point_out, "base_link",tf2::Duration(std::chrono::seconds(5)));
-         //  std::cout<<"not transformed grid x"<< point_stamped_in.point.x<<std::endl;
-
-        //   std::cout<<"transformed x to base_link"<< point_stamped_out.point.x<<std::endl;
-
-            not_stamped = point_out.point;
-
-
-            transformed_grid.cells.push_back(not_stamped);
-          }
-
-          } catch (tf2::TransformException& ex) 
-          {
-           RCLCPP_WARN(rclcpp::get_logger("TF"), "Failed to transform point to target frame: %s", ex.what());
-          }
-        
-
+   received_tf = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
 
   } catch (tf2::LookupException &ex)
   {
- //   RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Deactivating Controller!");
+
     RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
   }
 
+  tf_pub_->publish(received_tf);
 
-  grid_pub_->publish(transformed_grid);
-  tf_pub_->publish(test);
-
-  /* // Transform each point in the vector to the target frame
-  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> transformed_points;
-  for (const auto& point : point_vect_) {
-    try {
-            // Create a point stamped in the target frame
-            geometry_msgs::msg::PointStamped point_stamped_in, point_stamped_out;
-            point_stamped_in.point.x = point.x;
-            point_stamped_in.point.y = point.y;
-            point_stamped_in.header.frame_id = "map";  // Replace "original_frame" with the frame of your points
-
-            tf_->transform(point_stamped_in, point_stamped_out, "base_link",tf2::Duration(std::chrono::seconds(5)));
-
-            // Create a new KeyPoint with transformed coordinates
-            costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
-            transformed_point.x = point_stamped_out.point.x;
-            transformed_point.y = point_stamped_out.point.y;
-            transformed_points.push_back(transformed_point);
-          } catch (tf2::TransformException& ex) {
-           RCLCPP_WARN(rclcpp::get_logger("TF"), "Failed to transform point to target frame: %s", ex.what());
-          }
-        }
-*/
-
-
-
-
-
-
-  // tests 27/02 //////////////////////////////////////////////////////]
-
- //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint (0.0, 0.0);
-
-
-
-  geometry_msgs::msg::Polygon convex_hull;
- 
-
-  //costmap_converter_polygons_.convexHullWrapper(point_vect_,convex_hull);
-
- // Create new polygon container
-  //  costmap_converter::PolygonContainerPtr polygons(new std::vector<geometry_msgs::msg::Polygon>());;
-
-
-   
-     // polygons->push_back( geometry_msgs::msg::Polygon() );
-   //   costmap_converter_polygons_->convexHull(point_vect, polygons->back() );
-    
-
-
-
-
-
- /* costmap_converter::PolygonContainerConstPtr polygons = costmap_converter_->getPolygons();
-
-  if (polygons && polygons->size() > 1) 
-  {
-    // Create a PolygonStamped message
-    geometry_msgs::msg::PolygonStamped polygon_stamped_msg;
-
-    for (const auto &polygon: *polygons)
-    {
-
-      for(const auto& point: polygon.points)
-      {
-        // Assign the Polygon message to the PolygonStamped message
-        polygon_stamped_msg.polygon.points.push_back(point);
-
-      }
-
-
-     // const geometry_msgs::msg::Polygon& polygonAtIndex1 = (*polygons)[1];
-
-      
-    }
-
-    polygon_stamped_msg.header.stamp = clock_->now(); // Set the header time
-    polygon_stamped_msg.header.frame_id = "map";
-
-    polygon_pub_->publish(polygon_stamped_msg);
-
-  }*/
-
-
-///////////////////////////////////////////////////////////////////////
-
-  // publish as ObstacleArrayMsg to costmap_obstacles topic
-//  obstacle_pub_->publish(*obstacles);
 
   // get the global frame 
   std::string frame_id_ = costmap_ros_->getGlobalFrameID();
@@ -336,108 +180,14 @@ void CustomController::timer_callback()
 
   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,*obstacles);
 
-  costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
 
-/*  for (const auto& key_point : transformed_points) {
-    geometry_msgs::msg::Point32 point;
-    point.x = key_point.x;
-    point.y = key_point.y;
-   // point.z = 0.0;  // Assuming z-coordinate is 0
-
-    convex_hull_array.obstacles[0].polygon.points.push_back(point);
-}*/
-
-
-//std::cout<<"not transformed x:"<<point_vect_[0].x<<std::endl;
-//std::cout<<" transformed x:"<<transformed_points[0].x<<std::endl;
-
-
-
-
-
-/*
-  convex_hull_array.obstacles[0].polygon.points[0].x = 1.225;
-  convex_hull_array.obstacles[0].polygon.points[0].y = 0.975;
-
-  convex_hull_array.obstacles[0].polygon.points[1].x = 1.325;
-  convex_hull_array.obstacles[0].polygon.points[1].y = 1.425;
-
-  convex_hull_array.obstacles[1].polygon.points[0].x = 1.175;
-  convex_hull_array.obstacles[1].polygon.points[0].y = -0.225;
-
-convex_hull_array.obstacles[1].polygon.points[1].x = 1.175;
-convex_hull_array.obstacles[1].polygon.points[1].y = -0.775;
-
-convex_hull_array.obstacles[2].polygon.points[0].x = -0.325;
-convex_hull_array.obstacles[2].polygon.points[0].y = -1.175;
-
-
-convex_hull_array.obstacles[2].polygon.points[1].x = -0.925;
-convex_hull_array.obstacles[2].polygon.points[1].y = -1.225;
-
-convex_hull_array.obstacles[3].polygon.points[0].x = -1.425;
-convex_hull_array.obstacles[3].polygon.points[0].y = 0.875;
-
-convex_hull_array.obstacles[3].polygon.points[1].x = -0.825;
-convex_hull_array.obstacles[3].polygon.points[1].y = 0.825;
-
-convex_hull_array.obstacles[4].polygon.points[0].x = -1.375;
-convex_hull_array.obstacles[4].polygon.points[0].y = -0.225;
-
-convex_hull_array.obstacles[4].polygon.points[1].x = -1.425;
-convex_hull_array.obstacles[4].polygon.points[1].y = -0.475;*/
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// FOR VISUALIZING BOUNDED REGION
-
-/*std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect = {
-    {1.225, 0.975},
-    //{1.325, 1.425},
-    {1.175, -0.225},
-    {1.175, -0.775},
-    {-0.325, -1.175},
-    {-0.925, -1.225},
-    {-1.425, -0.475}, 
-    {-1.375, -0.225},
-     {-1.425, 0.875},
-    {-0.825, 0.825}
-};
-
-// Ensure the obstacle container has enough obstacles
-if (convex_hull_array.obstacles.empty()) {
-    convex_hull_array.obstacles.push_back(costmap_converter_msgs::msg::ObstacleMsg());
-}
-
-// Resize the points vector to accommodate all points
-convex_hull_array.obstacles[0].polygon.points.resize(point_vect.size());
-
-// Copy the points from point_vect to convex_hull_array.obstacles[0].polygon.points
-for (std::size_t i = 0; i < point_vect.size(); ++i) {
-    convex_hull_array.obstacles[0].polygon.points[i].x = point_vect[i].x;
-    convex_hull_array.obstacles[0].polygon.points[i].y = point_vect[i].y;
-}
-
-*/
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-
-    // Add the polygon_msg to convex_hull_array.obstacles.polygon
-  //  convex_hull_array.obstacles[0].polygon =convex_hull;
-
-// Create an instance of ObstacleMsg_ and populate it with the Polygon
-//costmap_converter_msgs::msg::ObstacleMsg obstacle_msg;
-//obstacle_msg.polygon = convex_hull;
-
-// Push the obstacle_msg into the vector
-//convex_hull_array.obstacles.push_back(obstacle_msg);
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
+
   //publishAsMarker(frame_id_, *obstacles);
 
-//  publishAsMarker(frame_id_,considered_polygons);
+  //  publishAsMarker(frame_id_,considered_polygons);
 
- // publishAsMarker(frame_id_,convex_hull_array);
+  // publishAsMarker(frame_id_,convex_hull_array);
 
 
 }
@@ -461,22 +211,11 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
     int total_vertices = obstacle.polygon.points.size();
 
-
-
-
-
-//std::cout<<"Vertices of obstacle "<<index<<":"<<std::endl;
-
     for (const auto &point:obstacle.polygon.points)
     {
 
       sum_x += point.x;
       sum_y += point.y;
-
-
-     // std::cout<<"Vertex "<<v_index<<"x = "<<point.x<<" y = "<<point.y<<std::endl;
-
-   //   v_index++;
 
 
     }
@@ -495,8 +234,6 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
     centroid.obstacles.push_back(centroid_of_obstacle); // Add the centroid of obstacle to the centroid obstacle array
 
-
-//index++;
 
   }
 

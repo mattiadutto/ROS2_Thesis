@@ -30,35 +30,10 @@ GoalPose::GoalPose()
   costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
 
 
-
-/*  double minX = -1;
-  double maxX = 1;
-  double minY = -1;
-  double maxY = 1;
-  double resolution = 0.1;
+  marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
 
   point_vect_.reserve(1000);
 
-
-  for (double x = minX; x <= maxX; x += resolution)
-  {
-
-    for (double y = minY; y <= maxY; y += resolution)
-    {
-
-      costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
-
-      point.x = x;
-      point.y = y;
-      point_vect_.push_back(point);
-
-    }
-  }*/
-
-
-  std::cout<<"grid created!"<<std::endl;
-
-  marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
 
 
 
@@ -85,62 +60,17 @@ void GoalPose::localCostmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPt
 
   local_costmap = *msg; // dereference and store in private variable the occupancy grid
 
+  // create a grid that moves with the robot's base_link
+  std::vector<geometry_msgs::msg::Point> grid;
 
-   // Define the target frame (e.g., "base_link")
-  std::string target_frame = "base_link";
+  point_vect_.clear();
 
-/*geometry_msgs::msg::TransformStamped test;
-  try
-  { 
-
-   test = tf_buffer_->lookupTransform("map","base_link",tf2::TimePointZero);
-     //   transformStamped = tf_buffer->lookupTransform("base_link", "map", tf2::TimePointZero);
-
-  } catch (tf2::LookupException &ex)
-  {
-    RCLCPP_WARN(this->get_logger(), "Can't find base_link to map tf: %s", ex.what());
-
-  }*/
-
-   /*// Transform each point in the vector to the target frame
-  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> transformed_points;
-  for (const auto& point : point_vect_) {
-    try {
-            // Create a point stamped in the target frame
-            geometry_msgs::msg::PointStamped point_stamped_in, point_stamped_out;
-            point_stamped_in.point.x = point.x;
-            point_stamped_in.point.y = point.y;
-            point_stamped_in.header.frame_id = "map";  // Replace "original_frame" with the frame of your points
-
-            tf_buffer_->transform(point_stamped_in, point_stamped_out, "base_link",tf2::Duration(std::chrono::seconds(5)));
-
-            // Create a new KeyPoint with transformed coordinates
-            costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
-            transformed_point.x = point_stamped_out.point.x;
-            transformed_point.y = point_stamped_out.point.y;
-            transformed_points.push_back(transformed_point);
-          } catch (tf2::TransformException& ex) {
-            RCLCPP_WARN(this->get_logger(), "Failed to transform point to target frame: %s", ex.what());
-          }
-        }*/
-
-
-
-
-/// new test
- std::vector<geometry_msgs::msg::Point> grid;
-
-point_vect_.clear();
- 
   double minX = received_tf_.transform.translation.x-1;
   double maxX = received_tf_.transform.translation.x+1;
   double minY = received_tf_.transform.translation.y-1;
   double maxY = received_tf_.transform.translation.y+1;
   double resolution = 0.2;
 
-
-
-  point_vect_.reserve(1000);
 
 
   for (double x = minX; x <= maxX; x += resolution)
@@ -158,36 +88,10 @@ point_vect_.clear();
     }
   }
 
-
-
-
-
-
-
-//////////////////////
-
-
-std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> transformed_points;
-
-
-
-
-for (const auto &point : transformed_grid_.cells)
-{
-
-  costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
-  transformed_point.x = point.x;
-  transformed_point.y = point.y;
-
-  transformed_points.push_back(transformed_point);
-}
-
   /// convex hull computation
   geometry_msgs::msg::Polygon convex_hull;
 
-  //costmap_converter_polygons_->convexHullWrapper(transformed_points, convex_hull);
   costmap_converter_polygons_->convexHullWrapper(point_vect_, convex_hull);
-
 
 
   costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
@@ -206,14 +110,6 @@ for (const auto &point : transformed_grid_.cells)
 
 
   publishAsMarker("map",convex_hull_array);
-
-
-
-  // tf to base_link
-
-
- 
-
 
 
   
