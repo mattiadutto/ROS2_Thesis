@@ -1,0 +1,400 @@
+[0.000000] (-) TimerEvent: {}
+[0.000586] (nav2_custom_controller) JobQueued: {'identifier': 'nav2_custom_controller', 'dependencies': OrderedDict()}
+[0.000700] (nav2_custom_controller) JobStarted: {'identifier': 'nav2_custom_controller'}
+[0.099520] (-) TimerEvent: {}
+[0.114932] (nav2_custom_controller) JobProgress: {'identifier': 'nav2_custom_controller', 'progress': 'cmake'}
+[0.115379] (nav2_custom_controller) Command: {'cmd': ['/usr/bin/cmake', '/home/garabetov/turtlebot3/src/nav2_custom_controller', '-DCMAKE_INSTALL_PREFIX=/home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller'], 'cwd': '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller', 'env': OrderedDict([('GJS_DEBUG_TOPICS', 'JS ERROR;JS LOG'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'garabetov'), ('LC_TIME', 'it_IT.UTF-8'), ('XDG_SESSION_TYPE', 'wayland'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/garabetov/turtlebot3/install/turtlebot3_msgs/lib:/home/garabetov/turtlebot3/install/nav2_custom_controller/lib:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/lib:/home/garabetov/turtlebot3/install/dynamixel_sdk/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib'), ('HOME', '/home/garabetov'), ('OLDPWD', '/home/garabetov/turtlebot3/src'), ('DESKTOP_SESSION', 'ubuntu'), ('GIO_LAUNCHED_DESKTOP_FILE', '/usr/share/applications/terminator.desktop'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('LC_MONETARY', 'it_IT.UTF-8'), ('MANAGERPID', '917'), ('SYSTEMD_EXEC_PID', '1191'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('TERMINATOR_DBUS_NAME', 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3'), ('GIO_LAUNCHED_DESKTOP_FILE_PID', '6244'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('COLCON_PREFIX_PATH', '/home/garabetov/turtlebot3/install'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'garabetov'), ('JOURNAL_STREAM', '8:23423'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'garabetov'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '1'), ('PATH', '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/garabetov-MacBookPro:@/tmp/.ICE-unix/1167,unix/garabetov-MacBookPro:/tmp/.ICE-unix/1167'), ('INVOCATION_ID', '31f16e3215914451b1bb84e11af9eae6'), ('XDG_MENU_PREFIX', 'gnome-'), ('LC_ADDRESS', 'it_IT.UTF-8'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('TERMINATOR_DBUS_PATH', '/net/tenshu/Terminator2'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('IBUS_DISABLE_SNOOPER', '1'), ('LC_TELEPHONE', 'it_IT.UTF-8'), ('XMODIFIERS', '@im=ibus'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.G4OEG2'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('ROS_DOMAIN_ID', '1'), ('AMENT_PREFIX_PATH', '/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_example:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk:/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LC_NAME', 'it_IT.UTF-8'), ('TERMINATOR_UUID', 'urn:uuid:f68611dd-1b48-4356-9306-2e6c528d1371'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'it_IT.UTF-8'), ('GJS_DEBUG_OUTPUT', 'stderr'), ('LC_IDENTIFICATION', 'it_IT.UTF-8'), ('QT_IM_MODULE', 'ibus'), ('PWD', '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller'), ('TURTLEBOT3_MODEL', 'waffle'), ('LC_ALL', 'en_US.UTF-8'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/garabetov/turtlebot3/install/turtlebot3_teleop/lib/python3.10/site-packages:/home/garabetov/turtlebot3/install/turtlebot3_example/lib/python3.10/site-packages:/home/garabetov/turtlebot3/install/turtlebot3_msgs/local/lib/python3.10/dist-packages:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('LC_NUMERIC', 'it_IT.UTF-8'), ('LC_PAPER', 'it_IT.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_example:/opt/ros/humble')]), 'shell': False}
+[0.199896] (-) TimerEvent: {}
+[0.300673] (-) TimerEvent: {}
+[0.401200] (-) TimerEvent: {}
+[0.501537] (-) TimerEvent: {}
+[0.601898] (-) TimerEvent: {}
+[0.702214] (-) TimerEvent: {}
+[0.802579] (-) TimerEvent: {}
+[0.902895] (-) TimerEvent: {}
+[1.003210] (-) TimerEvent: {}
+[1.103528] (-) TimerEvent: {}
+[1.204049] (-) TimerEvent: {}
+[1.304602] (-) TimerEvent: {}
+[1.404915] (-) TimerEvent: {}
+[1.505355] (-) TimerEvent: {}
+[1.511333] (nav2_custom_controller) StdoutLine: {'line': b'-- The C compiler identification is GNU 11.4.0\n'}
+[1.605436] (-) TimerEvent: {}
+[1.670410] (nav2_custom_controller) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 11.4.0\n'}
+[1.705568] (-) TimerEvent: {}
+[1.796077] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[1.805699] (-) TimerEvent: {}
+[1.906203] (-) TimerEvent: {}
+[2.006516] (-) TimerEvent: {}
+[2.106816] (-) TimerEvent: {}
+[2.121434] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[2.135706] (nav2_custom_controller) StdoutLine: {'line': b'-- Check for working C compiler: /usr/bin/cc - skipped\n'}
+[2.136701] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[2.168503] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[2.180251] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[2.206928] (-) TimerEvent: {}
+[2.281711] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[2.290707] (nav2_custom_controller) StdoutLine: {'line': b'-- Check for working CXX compiler: /usr/bin/c++ - skipped\n'}
+[2.290997] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[2.291590] (nav2_custom_controller) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[2.307133] (-) TimerEvent: {}
+[2.407450] (-) TimerEvent: {}
+[2.507749] (-) TimerEvent: {}
+[2.586977] (nav2_custom_controller) StdoutLine: {'line': b'-- Found ament_cmake: 1.3.5 (/opt/ros/humble/share/ament_cmake/cmake)\n'}
+[2.607881] (-) TimerEvent: {}
+[2.708216] (-) TimerEvent: {}
+[2.808512] (-) TimerEvent: {}
+[2.908822] (-) TimerEvent: {}
+[2.938876] (nav2_custom_controller) StdoutLine: {'line': b'-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter \n'}
+[3.008952] (-) TimerEvent: {}
+[3.109264] (-) TimerEvent: {}
+[3.209583] (-) TimerEvent: {}
+[3.289542] (nav2_custom_controller) StdoutLine: {'line': b'-- Found nav2_common: 1.1.12 (/opt/ros/humble/share/nav2_common/cmake)\n'}
+[3.309733] (-) TimerEvent: {}
+[3.324948] (nav2_custom_controller) StdoutLine: {'line': b'-- Found nav2_core: 1.1.12 (/opt/ros/humble/share/nav2_core/cmake)\n'}
+[3.409869] (-) TimerEvent: {}
+[3.510185] (-) TimerEvent: {}
+[3.610595] (-) TimerEvent: {}
+[3.689963] (nav2_custom_controller) StdoutLine: {'line': b'-- Found rosidl_generator_c: 3.1.5 (/opt/ros/humble/share/rosidl_generator_c/cmake)\n'}
+[3.703360] (nav2_custom_controller) StdoutLine: {'line': b'-- Found rosidl_adapter: 3.1.5 (/opt/ros/humble/share/rosidl_adapter/cmake)\n'}
+[3.710707] (-) TimerEvent: {}
+[3.736179] (nav2_custom_controller) StdoutLine: {'line': b'-- Found rosidl_generator_cpp: 3.1.5 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)\n'}
+[3.810841] (-) TimerEvent: {}
+[3.842533] (nav2_custom_controller) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[3.910968] (-) TimerEvent: {}
+[3.923579] (nav2_custom_controller) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[4.011111] (-) TimerEvent: {}
+[4.111418] (-) TimerEvent: {}
+[4.157955] (nav2_custom_controller) StdoutLine: {'line': b'-- Found rmw_implementation_cmake: 6.1.1 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)\n'}
+[4.167196] (nav2_custom_controller) StdoutLine: {'line': b'-- Found rmw_fastrtps_cpp: 6.2.4 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)\n'}
+[4.211528] (-) TimerEvent: {}
+[4.311838] (-) TimerEvent: {}
+[4.412176] (-) TimerEvent: {}
+[4.512504] (-) TimerEvent: {}
+[4.612803] (-) TimerEvent: {}
+[4.706097] (nav2_custom_controller) StdoutLine: {'line': b'-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  \n'}
+[4.712922] (-) TimerEvent: {}
+[4.748592] (nav2_custom_controller) StdoutLine: {'line': b'-- Found FastRTPS: /opt/ros/humble/include  \n'}
+[4.811140] (nav2_custom_controller) StdoutLine: {'line': b"-- Using RMW implementation 'rmw_fastrtps_cpp' as default\n"}
+[4.813037] (-) TimerEvent: {}
+[4.904533] (nav2_custom_controller) StdoutLine: {'line': b'-- Looking for pthread.h\n'}
+[4.913190] (-) TimerEvent: {}
+[5.013496] (-) TimerEvent: {}
+[5.016213] (nav2_custom_controller) StdoutLine: {'line': b'-- Looking for pthread.h - found\n'}
+[5.016627] (nav2_custom_controller) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n'}
+[5.107451] (nav2_custom_controller) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n'}
+[5.108787] (nav2_custom_controller) StdoutLine: {'line': b'-- Found Threads: TRUE  \n'}
+[5.113638] (-) TimerEvent: {}
+[5.213932] (-) TimerEvent: {}
+[5.314250] (-) TimerEvent: {}
+[5.414579] (-) TimerEvent: {}
+[5.514943] (-) TimerEvent: {}
+[5.615258] (-) TimerEvent: {}
+[5.715553] (-) TimerEvent: {}
+[5.815856] (-) TimerEvent: {}
+[5.916141] (-) TimerEvent: {}
+[6.016477] (-) TimerEvent: {}
+[6.116769] (-) TimerEvent: {}
+[6.217036] (-) TimerEvent: {}
+[6.317378] (-) TimerEvent: {}
+[6.417766] (-) TimerEvent: {}
+[6.518150] (-) TimerEvent: {}
+[6.618530] (-) TimerEvent: {}
+[6.718933] (-) TimerEvent: {}
+[6.819314] (-) TimerEvent: {}
+[6.919614] (-) TimerEvent: {}
+[7.019890] (-) TimerEvent: {}
+[7.120188] (-) TimerEvent: {}
+[7.220528] (-) TimerEvent: {}
+[7.320880] (-) TimerEvent: {}
+[7.421220] (-) TimerEvent: {}
+[7.521583] (-) TimerEvent: {}
+[7.621911] (-) TimerEvent: {}
+[7.722316] (-) TimerEvent: {}
+[7.822846] (-) TimerEvent: {}
+[7.923314] (-) TimerEvent: {}
+[8.023709] (-) TimerEvent: {}
+[8.124102] (-) TimerEvent: {}
+[8.224538] (-) TimerEvent: {}
+[8.324873] (-) TimerEvent: {}
+[8.425193] (-) TimerEvent: {}
+[8.525506] (-) TimerEvent: {}
+[8.625809] (-) TimerEvent: {}
+[8.726119] (-) TimerEvent: {}
+[8.810185] (nav2_custom_controller) StdoutLine: {'line': b'-- Found Eigen3: TRUE (found version "3.4.0") \n'}
+[8.810488] (nav2_custom_controller) StdoutLine: {'line': b'-- Ensuring Eigen3 include directory is part of orocos-kdl CMake target\n'}
+[8.826234] (-) TimerEvent: {}
+[8.926576] (-) TimerEvent: {}
+[9.026878] (-) TimerEvent: {}
+[9.127220] (-) TimerEvent: {}
+[9.227534] (-) TimerEvent: {}
+[9.327842] (-) TimerEvent: {}
+[9.428147] (-) TimerEvent: {}
+[9.528494] (-) TimerEvent: {}
+[9.628807] (-) TimerEvent: {}
+[9.729179] (-) TimerEvent: {}
+[9.829513] (-) TimerEvent: {}
+[9.929863] (-) TimerEvent: {}
+[10.030191] (-) TimerEvent: {}
+[10.130555] (-) TimerEvent: {}
+[10.230919] (-) TimerEvent: {}
+[10.331210] (-) TimerEvent: {}
+[10.431494] (-) TimerEvent: {}
+[10.531806] (-) TimerEvent: {}
+[10.632096] (-) TimerEvent: {}
+[10.732445] (-) TimerEvent: {}
+[10.832763] (-) TimerEvent: {}
+[10.933077] (-) TimerEvent: {}
+[11.033389] (-) TimerEvent: {}
+[11.133696] (-) TimerEvent: {}
+[11.234007] (-) TimerEvent: {}
+[11.334326] (-) TimerEvent: {}
+[11.434646] (-) TimerEvent: {}
+[11.534964] (-) TimerEvent: {}
+[11.625897] (nav2_custom_controller) StdoutLine: {'line': b'-- Setting build type to Release as none was specified.\n'}
+[11.635068] (-) TimerEvent: {}
+[11.735361] (-) TimerEvent: {}
+[11.835682] (-) TimerEvent: {}
+[11.936015] (-) TimerEvent: {}
+[12.036336] (-) TimerEvent: {}
+[12.136660] (-) TimerEvent: {}
+[12.236986] (-) TimerEvent: {}
+[12.337325] (-) TimerEvent: {}
+[12.437643] (-) TimerEvent: {}
+[12.537964] (-) TimerEvent: {}
+[12.638280] (-) TimerEvent: {}
+[12.738592] (-) TimerEvent: {}
+[12.838908] (-) TimerEvent: {}
+[12.939229] (-) TimerEvent: {}
+[13.039541] (-) TimerEvent: {}
+[13.139863] (-) TimerEvent: {}
+[13.240182] (-) TimerEvent: {}
+[13.340495] (-) TimerEvent: {}
+[13.440813] (-) TimerEvent: {}
+[13.541132] (-) TimerEvent: {}
+[13.641451] (-) TimerEvent: {}
+[13.741767] (-) TimerEvent: {}
+[13.842087] (-) TimerEvent: {}
+[13.942418] (-) TimerEvent: {}
+[14.042738] (-) TimerEvent: {}
+[14.143066] (-) TimerEvent: {}
+[14.243375] (-) TimerEvent: {}
+[14.343715] (-) TimerEvent: {}
+[14.444033] (-) TimerEvent: {}
+[14.544367] (-) TimerEvent: {}
+[14.644696] (-) TimerEvent: {}
+[14.745047] (-) TimerEvent: {}
+[14.845443] (-) TimerEvent: {}
+[14.945817] (-) TimerEvent: {}
+[15.046141] (-) TimerEvent: {}
+[15.146475] (-) TimerEvent: {}
+[15.246790] (-) TimerEvent: {}
+[15.347092] (-) TimerEvent: {}
+[15.447410] (-) TimerEvent: {}
+[15.547733] (-) TimerEvent: {}
+[15.648066] (-) TimerEvent: {}
+[15.748387] (-) TimerEvent: {}
+[15.848703] (-) TimerEvent: {}
+[15.949040] (-) TimerEvent: {}
+[16.049367] (-) TimerEvent: {}
+[16.149699] (-) TimerEvent: {}
+[16.250020] (-) TimerEvent: {}
+[16.350342] (-) TimerEvent: {}
+[16.450660] (-) TimerEvent: {}
+[16.550971] (-) TimerEvent: {}
+[16.651288] (-) TimerEvent: {}
+[16.751595] (-) TimerEvent: {}
+[16.757346] (nav2_custom_controller) StdoutLine: {'line': b'-- Found ament_lint_auto: 0.12.8 (/opt/ros/humble/share/ament_lint_auto/cmake)\n'}
+[16.851727] (-) TimerEvent: {}
+[16.952043] (-) TimerEvent: {}
+[17.052352] (-) TimerEvent: {}
+[17.152790] (-) TimerEvent: {}
+[17.253101] (-) TimerEvent: {}
+[17.353416] (-) TimerEvent: {}
+[17.453731] (-) TimerEvent: {}
+[17.554097] (-) TimerEvent: {}
+[17.654454] (-) TimerEvent: {}
+[17.754765] (-) TimerEvent: {}
+[17.855056] (-) TimerEvent: {}
+[17.862078] (nav2_custom_controller) StdoutLine: {'line': b"-- Added test 'cppcheck' to perform static code analysis on C / C++ code\n"}
+[17.862514] (nav2_custom_controller) StdoutLine: {'line': b'-- Configured cppcheck include dirs: /home/garabetov/turtlebot3/src/nav2_custom_controller/include\n'}
+[17.862669] (nav2_custom_controller) StdoutLine: {'line': b'-- Configured cppcheck exclude dirs and/or files: \n'}
+[17.868205] (nav2_custom_controller) StdoutLine: {'line': b"-- Added test 'cpplint' to check C / C++ code against the Google style\n"}
+[17.868510] (nav2_custom_controller) StdoutLine: {'line': b'-- Configured cpplint exclude dirs and/or files: \n'}
+[17.872577] (nav2_custom_controller) StdoutLine: {'line': b"-- Added test 'lint_cmake' to check CMake code style\n"}
+[17.879635] (nav2_custom_controller) StdoutLine: {'line': b"-- Added test 'uncrustify' to check C / C++ code style\n"}
+[17.879813] (nav2_custom_controller) StdoutLine: {'line': b'-- Configured uncrustify additional arguments: \n'}
+[17.882036] (nav2_custom_controller) StdoutLine: {'line': b"-- Added test 'xmllint' to check XML markup files\n"}
+[17.955174] (-) TimerEvent: {}
+[18.055509] (-) TimerEvent: {}
+[18.114790] (nav2_custom_controller) StdoutLine: {'line': b'-- Configuring done\n'}
+[18.155615] (-) TimerEvent: {}
+[18.255934] (-) TimerEvent: {}
+[18.356232] (-) TimerEvent: {}
+[18.456614] (-) TimerEvent: {}
+[18.556925] (-) TimerEvent: {}
+[18.657232] (-) TimerEvent: {}
+[18.757514] (-) TimerEvent: {}
+[18.857869] (-) TimerEvent: {}
+[18.958351] (-) TimerEvent: {}
+[19.017138] (nav2_custom_controller) StdoutLine: {'line': b'-- Generating done\n'}
+[19.020114] (nav2_custom_controller) StdoutLine: {'line': b'-- Build files have been written to: /home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller\n'}
+[19.037024] (nav2_custom_controller) CommandEnded: {'returncode': 0}
+[19.037821] (nav2_custom_controller) JobProgress: {'identifier': 'nav2_custom_controller', 'progress': 'build'}
+[19.038663] (nav2_custom_controller) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller', '--', '-j4', '-l4'], 'cwd': '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller', 'env': OrderedDict([('GJS_DEBUG_TOPICS', 'JS ERROR;JS LOG'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'garabetov'), ('LC_TIME', 'it_IT.UTF-8'), ('XDG_SESSION_TYPE', 'wayland'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/garabetov/turtlebot3/install/turtlebot3_msgs/lib:/home/garabetov/turtlebot3/install/nav2_custom_controller/lib:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/lib:/home/garabetov/turtlebot3/install/dynamixel_sdk/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib'), ('HOME', '/home/garabetov'), ('OLDPWD', '/home/garabetov/turtlebot3/src'), ('DESKTOP_SESSION', 'ubuntu'), ('GIO_LAUNCHED_DESKTOP_FILE', '/usr/share/applications/terminator.desktop'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('LC_MONETARY', 'it_IT.UTF-8'), ('MANAGERPID', '917'), ('SYSTEMD_EXEC_PID', '1191'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('TERMINATOR_DBUS_NAME', 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3'), ('GIO_LAUNCHED_DESKTOP_FILE_PID', '6244'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('COLCON_PREFIX_PATH', '/home/garabetov/turtlebot3/install'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'garabetov'), ('JOURNAL_STREAM', '8:23423'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'garabetov'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '1'), ('PATH', '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/garabetov-MacBookPro:@/tmp/.ICE-unix/1167,unix/garabetov-MacBookPro:/tmp/.ICE-unix/1167'), ('INVOCATION_ID', '31f16e3215914451b1bb84e11af9eae6'), ('XDG_MENU_PREFIX', 'gnome-'), ('LC_ADDRESS', 'it_IT.UTF-8'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('TERMINATOR_DBUS_PATH', '/net/tenshu/Terminator2'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('IBUS_DISABLE_SNOOPER', '1'), ('LC_TELEPHONE', 'it_IT.UTF-8'), ('XMODIFIERS', '@im=ibus'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.G4OEG2'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('ROS_DOMAIN_ID', '1'), ('AMENT_PREFIX_PATH', '/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_example:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk:/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LC_NAME', 'it_IT.UTF-8'), ('TERMINATOR_UUID', 'urn:uuid:f68611dd-1b48-4356-9306-2e6c528d1371'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'it_IT.UTF-8'), ('GJS_DEBUG_OUTPUT', 'stderr'), ('LC_IDENTIFICATION', 'it_IT.UTF-8'), ('QT_IM_MODULE', 'ibus'), ('PWD', '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller'), ('TURTLEBOT3_MODEL', 'waffle'), ('LC_ALL', 'en_US.UTF-8'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/garabetov/turtlebot3/install/turtlebot3_teleop/lib/python3.10/site-packages:/home/garabetov/turtlebot3/install/turtlebot3_example/lib/python3.10/site-packages:/home/garabetov/turtlebot3/install/turtlebot3_msgs/local/lib/python3.10/dist-packages:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('LC_NUMERIC', 'it_IT.UTF-8'), ('LC_PAPER', 'it_IT.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_example:/opt/ros/humble')]), 'shell': False}
+[19.058480] (-) TimerEvent: {}
+[19.107942] (nav2_custom_controller) StdoutLine: {'line': b'[ 50%] \x1b[32mBuilding CXX object CMakeFiles/nav2_custom_controller.dir/src/custom_controller.cpp.o\x1b[0m\n'}
+[19.158632] (-) TimerEvent: {}
+[19.259252] (-) TimerEvent: {}
+[19.359736] (-) TimerEvent: {}
+[19.460217] (-) TimerEvent: {}
+[19.560674] (-) TimerEvent: {}
+[19.661183] (-) TimerEvent: {}
+[19.761758] (-) TimerEvent: {}
+[19.862203] (-) TimerEvent: {}
+[19.962495] (-) TimerEvent: {}
+[20.062833] (-) TimerEvent: {}
+[20.163143] (-) TimerEvent: {}
+[20.263449] (-) TimerEvent: {}
+[20.363789] (-) TimerEvent: {}
+[20.464106] (-) TimerEvent: {}
+[20.564432] (-) TimerEvent: {}
+[20.664771] (-) TimerEvent: {}
+[20.765059] (-) TimerEvent: {}
+[20.865353] (-) TimerEvent: {}
+[20.965652] (-) TimerEvent: {}
+[21.065982] (-) TimerEvent: {}
+[21.166285] (-) TimerEvent: {}
+[21.266592] (-) TimerEvent: {}
+[21.366904] (-) TimerEvent: {}
+[21.467206] (-) TimerEvent: {}
+[21.567494] (-) TimerEvent: {}
+[21.667791] (-) TimerEvent: {}
+[21.768094] (-) TimerEvent: {}
+[21.868388] (-) TimerEvent: {}
+[21.968686] (-) TimerEvent: {}
+[22.068988] (-) TimerEvent: {}
+[22.169292] (-) TimerEvent: {}
+[22.269618] (-) TimerEvent: {}
+[22.370007] (-) TimerEvent: {}
+[22.470456] (-) TimerEvent: {}
+[22.570837] (-) TimerEvent: {}
+[22.671193] (-) TimerEvent: {}
+[22.771622] (-) TimerEvent: {}
+[22.872105] (-) TimerEvent: {}
+[22.972485] (-) TimerEvent: {}
+[23.072792] (-) TimerEvent: {}
+[23.173176] (-) TimerEvent: {}
+[23.273621] (-) TimerEvent: {}
+[23.374013] (-) TimerEvent: {}
+[23.474407] (-) TimerEvent: {}
+[23.574778] (-) TimerEvent: {}
+[23.675170] (-) TimerEvent: {}
+[23.775520] (-) TimerEvent: {}
+[23.875939] (-) TimerEvent: {}
+[23.976343] (-) TimerEvent: {}
+[24.076672] (-) TimerEvent: {}
+[24.177089] (-) TimerEvent: {}
+[24.277436] (-) TimerEvent: {}
+[24.377794] (-) TimerEvent: {}
+[24.478190] (-) TimerEvent: {}
+[24.578605] (-) TimerEvent: {}
+[24.678923] (-) TimerEvent: {}
+[24.779236] (-) TimerEvent: {}
+[24.879669] (-) TimerEvent: {}
+[24.980189] (-) TimerEvent: {}
+[25.080561] (-) TimerEvent: {}
+[25.180903] (-) TimerEvent: {}
+[25.281275] (-) TimerEvent: {}
+[25.381601] (-) TimerEvent: {}
+[25.481944] (-) TimerEvent: {}
+[25.582286] (-) TimerEvent: {}
+[25.682650] (-) TimerEvent: {}
+[25.782999] (-) TimerEvent: {}
+[25.883359] (-) TimerEvent: {}
+[25.983712] (-) TimerEvent: {}
+[26.084066] (-) TimerEvent: {}
+[26.184452] (-) TimerEvent: {}
+[26.284994] (-) TimerEvent: {}
+[26.385305] (-) TimerEvent: {}
+[26.485614] (-) TimerEvent: {}
+[26.585918] (-) TimerEvent: {}
+[26.686226] (-) TimerEvent: {}
+[26.786526] (-) TimerEvent: {}
+[26.886837] (-) TimerEvent: {}
+[26.987134] (-) TimerEvent: {}
+[27.087423] (-) TimerEvent: {}
+[27.187704] (-) TimerEvent: {}
+[27.288005] (-) TimerEvent: {}
+[27.388315] (-) TimerEvent: {}
+[27.488648] (-) TimerEvent: {}
+[27.588967] (-) TimerEvent: {}
+[27.689272] (-) TimerEvent: {}
+[27.789568] (-) TimerEvent: {}
+[27.889861] (-) TimerEvent: {}
+[27.990157] (-) TimerEvent: {}
+[28.090466] (-) TimerEvent: {}
+[28.190814] (-) TimerEvent: {}
+[28.291102] (-) TimerEvent: {}
+[28.391438] (-) TimerEvent: {}
+[28.491770] (-) TimerEvent: {}
+[28.592070] (-) TimerEvent: {}
+[28.692375] (-) TimerEvent: {}
+[28.792709] (-) TimerEvent: {}
+[28.893004] (-) TimerEvent: {}
+[28.993350] (-) TimerEvent: {}
+[29.093673] (-) TimerEvent: {}
+[29.193968] (-) TimerEvent: {}
+[29.294271] (-) TimerEvent: {}
+[29.394586] (-) TimerEvent: {}
+[29.494883] (-) TimerEvent: {}
+[29.595178] (-) TimerEvent: {}
+[29.695477] (-) TimerEvent: {}
+[29.795807] (-) TimerEvent: {}
+[29.881114] (nav2_custom_controller) StdoutLine: {'line': b'[100%] \x1b[32m\x1b[1mLinking CXX shared library libnav2_custom_controller.so\x1b[0m\n'}
+[29.895932] (-) TimerEvent: {}
+[29.996280] (-) TimerEvent: {}
+[30.096581] (-) TimerEvent: {}
+[30.196932] (-) TimerEvent: {}
+[30.297305] (-) TimerEvent: {}
+[30.345693] (nav2_custom_controller) StdoutLine: {'line': b'[100%] Built target nav2_custom_controller\n'}
+[30.359122] (nav2_custom_controller) CommandEnded: {'returncode': 0}
+[30.391904] (nav2_custom_controller) JobProgress: {'identifier': 'nav2_custom_controller', 'progress': 'install'}
+[30.397423] (-) TimerEvent: {}
+[30.402385] (nav2_custom_controller) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller'], 'cwd': '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller', 'env': OrderedDict([('GJS_DEBUG_TOPICS', 'JS ERROR;JS LOG'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'garabetov'), ('LC_TIME', 'it_IT.UTF-8'), ('XDG_SESSION_TYPE', 'wayland'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/garabetov/turtlebot3/install/turtlebot3_msgs/lib:/home/garabetov/turtlebot3/install/nav2_custom_controller/lib:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/lib:/home/garabetov/turtlebot3/install/dynamixel_sdk/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib'), ('HOME', '/home/garabetov'), ('OLDPWD', '/home/garabetov/turtlebot3/src'), ('DESKTOP_SESSION', 'ubuntu'), ('GIO_LAUNCHED_DESKTOP_FILE', '/usr/share/applications/terminator.desktop'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('LC_MONETARY', 'it_IT.UTF-8'), ('MANAGERPID', '917'), ('SYSTEMD_EXEC_PID', '1191'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('TERMINATOR_DBUS_NAME', 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3'), ('GIO_LAUNCHED_DESKTOP_FILE_PID', '6244'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('COLCON_PREFIX_PATH', '/home/garabetov/turtlebot3/install'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'garabetov'), ('JOURNAL_STREAM', '8:23423'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'garabetov'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '1'), ('PATH', '/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/garabetov-MacBookPro:@/tmp/.ICE-unix/1167,unix/garabetov-MacBookPro:/tmp/.ICE-unix/1167'), ('INVOCATION_ID', '31f16e3215914451b1bb84e11af9eae6'), ('XDG_MENU_PREFIX', 'gnome-'), ('LC_ADDRESS', 'it_IT.UTF-8'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('TERMINATOR_DBUS_PATH', '/net/tenshu/Terminator2'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('IBUS_DISABLE_SNOOPER', '1'), ('LC_TELEPHONE', 'it_IT.UTF-8'), ('XMODIFIERS', '@im=ibus'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.G4OEG2'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('ROS_DOMAIN_ID', '1'), ('AMENT_PREFIX_PATH', '/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_example:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk:/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LC_NAME', 'it_IT.UTF-8'), ('TERMINATOR_UUID', 'urn:uuid:f68611dd-1b48-4356-9306-2e6c528d1371'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'it_IT.UTF-8'), ('GJS_DEBUG_OUTPUT', 'stderr'), ('LC_IDENTIFICATION', 'it_IT.UTF-8'), ('QT_IM_MODULE', 'ibus'), ('PWD', '/home/garabetov/turtlebot3/src/nav2_custom_controller/build/nav2_custom_controller'), ('TURTLEBOT3_MODEL', 'waffle'), ('LC_ALL', 'en_US.UTF-8'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/garabetov/turtlebot3/install/turtlebot3_teleop/lib/python3.10/site-packages:/home/garabetov/turtlebot3/install/turtlebot3_example/lib/python3.10/site-packages:/home/garabetov/turtlebot3/install/turtlebot3_msgs/local/lib/python3.10/dist-packages:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('LC_NUMERIC', 'it_IT.UTF-8'), ('LC_PAPER', 'it_IT.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/home/garabetov/turtlebot3/install/turtlebot3:/home/garabetov/turtlebot3/install/turtlebot3_simulations:/home/garabetov/turtlebot3/install/turtlebot3_bringup:/home/garabetov/turtlebot3/install/turtlebot3_node:/home/garabetov/turtlebot3/install/turtlebot3_navigation2:/home/garabetov/turtlebot3/install/turtlebot3_fake_node:/home/garabetov/turtlebot3/install/turtlebot3_msgs:/home/garabetov/turtlebot3/install/turtlebot3_gazebo:/home/garabetov/turtlebot3/install/turtlebot3_description:/home/garabetov/turtlebot3/install/turtlebot3_cartographer:/home/garabetov/turtlebot3/install/teleop:/home/garabetov/turtlebot3/install/send_goal_pose:/home/garabetov/turtlebot3/install/nav2_custom_controller:/home/garabetov/turtlebot3/install/goal_pose:/home/garabetov/turtlebot3/install/dynamixel_sdk_examples:/home/garabetov/turtlebot3/install/dynamixel_sdk_custom_interfaces:/home/garabetov/turtlebot3/install/dynamixel_sdk:/home/garabetov/turtlebot3/install/turtlebot3_teleop:/home/garabetov/turtlebot3/install/turtlebot3_example:/opt/ros/humble')]), 'shell': False}
+[30.412827] (nav2_custom_controller) StdoutLine: {'line': b'-- Install configuration: "Release"\n'}
+[30.413148] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/lib/libnav2_custom_controller.so\n'}
+[30.414646] (nav2_custom_controller) StdoutLine: {'line': b'-- Set runtime path of "/home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/lib/libnav2_custom_controller.so" to ""\n'}
+[30.415255] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/include/\n'}
+[30.415490] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/include//.vscode\n'}
+[30.415859] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/include//.vscode/c_cpp_properties.json\n'}
+[30.431524] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/include//nav2_custom_controller\n'}
+[30.432214] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/include//nav2_custom_controller/custom_controller.hpp\n'}
+[30.432772] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/environment/library_path.sh\n'}
+[30.433227] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/environment/library_path.dsv\n'}
+[30.433482] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/custom_controller_plugin.xml\n'}
+[30.433673] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/ament_index/resource_index/package_run_dependencies/nav2_custom_controller\n'}
+[30.433819] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/ament_index/resource_index/parent_prefix_path/nav2_custom_controller\n'}
+[30.433956] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/environment/ament_prefix_path.sh\n'}
+[30.434109] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/environment/ament_prefix_path.dsv\n'}
+[30.434258] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/environment/path.sh\n'}
+[30.434402] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/environment/path.dsv\n'}
+[30.434550] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/local_setup.bash\n'}
+[30.434712] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/local_setup.sh\n'}
+[30.434863] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/local_setup.zsh\n'}
+[30.435043] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/local_setup.dsv\n'}
+[30.435304] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/package.dsv\n'}
+[30.435586] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/ament_index/resource_index/packages/nav2_custom_controller\n'}
+[30.435895] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/ament_index/resource_index/nav2_core__pluginlib__plugin/nav2_custom_controller\n'}
+[30.436173] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/cmake/ament_cmake_export_include_directories-extras.cmake\n'}
+[30.436395] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/cmake/ament_cmake_export_libraries-extras.cmake\n'}
+[30.436630] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/cmake/ament_cmake_export_dependencies-extras.cmake\n'}
+[30.436878] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/cmake/nav2_custom_controllerConfig.cmake\n'}
+[30.437102] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/cmake/nav2_custom_controllerConfig-version.cmake\n'}
+[30.437302] (nav2_custom_controller) StdoutLine: {'line': b'-- Installing: /home/garabetov/turtlebot3/src/nav2_custom_controller/install/nav2_custom_controller/share/nav2_custom_controller/package.xml\n'}
+[30.439394] (nav2_custom_controller) CommandEnded: {'returncode': 0}
+[30.497610] (-) TimerEvent: {}
+[30.598070] (-) TimerEvent: {}
+[30.699135] (-) TimerEvent: {}
+[30.702232] (nav2_custom_controller) JobEnded: {'identifier': 'nav2_custom_controller', 'rc': 0}
+[30.702948] (-) EventReactorShutdown: {}
