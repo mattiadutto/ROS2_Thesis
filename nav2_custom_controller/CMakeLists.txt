@@ -2,8 +2,16 @@ cmake_minimum_required(VERSION 3.8)
 project(nav2_custom_controller)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra )
 endif()
+
+
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(GUROBI_LIB_DIR "/home/garabetov/Gurobi/gurobi1100/linux64/lib")
+
+
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -18,10 +26,15 @@ find_package(pluginlib REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(costmap_converter REQUIRED)
 
+
+
 nav2_package()
 
 include_directories(
   include
+  include/nav2_custom_controller
+ # /home/garabetov/Gurobi/gurobi1100/linux64/include
+  ${GUROBI_LIB_DIR}/include
 )
 
 set(dependencies
@@ -34,11 +47,47 @@ set(dependencies
   nav2_core
   tf2
   costmap_converter
+  
 )
 
-add_library(nav2_custom_controller SHARED
-        src/custom_controller.cpp
-        src/feedback_lin.cpp)
+
+link_directories(${GUROBI_LIB_DIR})
+link_libraries(gurobi_g++8.5)
+
+
+
+# Source files
+set(SOURCES
+  src/custom_controller.cpp
+  src/feedback_lin.cpp
+  src/MPC_diffDrive_fblin.cpp
+  src/GUROBIsolver.cpp
+  src/fblin_unicycle.cpp
+  
+)
+
+# Build the main library
+add_library(nav2_custom_controller SHARED ${SOURCES})
+
+#add_library(nav2_custom_controller SHARED
+#        src/custom_controller.cpp
+#        src/feedback_lin.cpp
+#        src/MPC_diffDrive_fblin.cpp
+#        src/GUROBIsolver.cpp
+#        )
+
+target_link_libraries(nav2_custom_controller /home/garabetov/Gurobi/gurobi1100/linux64/lib/libgurobi110.so)
+
+#target_link_libraries(nav2_custom_controller
+ #   ${CMAKE_DL_LIBS} # This is often necessary for Gurobi
+ #   /home/garabetov/Gurobi/gurobi1100/linux64/lib/libgurobi110.so
+#)
+
+# Specify the path to the Gurobi library
+#set(GUROBI_LIBRARY "/home/garabetov/Gurobi/gurobi1100/linux64/lib/libgurobi110.so")
+
+# Link the nav2_custom_controller library with the Gurobi library
+#target_link_libraries(nav2_custom_controller INTERFACE ${GUROBI_LIBRARY})
 
 # prevent pluginlib from using boost
 target_compile_definitions(nav2_custom_controller PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")

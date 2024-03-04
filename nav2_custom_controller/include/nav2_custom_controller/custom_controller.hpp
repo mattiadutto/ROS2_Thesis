@@ -30,6 +30,9 @@
 #include <visualization_msgs/msg/marker.hpp>
 #include "nav_msgs/msg/grid_cells.hpp"
 
+#include "nav2_custom_controller/fblin_unicycle.h"
+#include "nav2_custom_controller/MPC_diffDrive_fblin.h"
+
 
 
 namespace nav2_custom_controller
@@ -151,6 +154,32 @@ class CustomController : public nav2_core::Controller
     rclcpp::TimerBase::SharedPtr wall_timer_;
 
      std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+
+
+
+ // MPC part ///////////////////////////////////
+  std::unique_ptr<MPC_diffDrive_fblin> MPC_;
+
+  // MPC parameters
+     int N_;
+     double Ts_MPC_;
+     double q_;
+     double r_;
+     int maxInfeasibleSolution_;
+
+    // Feedback linearization parameters
+     double p_dist_;
+     double Ts_fblin_;
+
+    // Robot parameters
+     double wMax_;
+     double wMin_;
+     double R_;
+     double d_;
+
+     std::vector<double> lb_;
+    std::vector<double> ub_;
+
 
 
 

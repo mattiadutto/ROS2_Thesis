@@ -55,14 +55,13 @@ template <typename Iter, typename Getter>
   };
 
 
-  CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
-  {
+CustomController::CustomController()
+    : costmap_ros_(nullptr),
+      costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),
+      MPC_(std::make_unique<MPC_diffDrive_fblin>())
+{ 
+}
 
-
-
-
-
-  }
 
   void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
     std::string name, const std::shared_ptr<tf2_ros::Buffer>  tf,
@@ -146,6 +145,48 @@ template <typename Iter, typename Getter>
     pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
     // costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
+
+    /// MPC PART
+
+
+// MPC part //////////////
+
+  //MPC param
+  N_ = 2;
+  Ts_MPC_ = 0.2;
+  q_ = 2.0;
+  r_ = 1.0;
+  maxInfeasibleSolution_ = 2;
+
+  // Feedback linearization parameters
+  p_dist_ = 0.1;
+  Ts_fblin_ = 0.01;
+
+  // Robot parameters
+  wMax_ = 10.0;
+  wMin_ = -wMax_;
+  R_ = 0.2;
+  d_ = 0.4;
+
+  lb_ = {2, -100.0};
+  ub_ = {2, 100.0};
+
+  MPC_->set_MPCparams(Ts_MPC_, N_, q_, r_, lb_, ub_, maxInfeasibleSolution_);
+  MPC_->set_FBLINparams(Ts_fblin_, p_dist_);
+  MPC_->set_robotParams(wMax_, wMin_, R_, d_);
+
+  if(MPC_->initialize())
+  {
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC controller successfully initialized");
+
+  }
+  
+  
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC controller successfully initialized");
+
+ 
+
+
 
 
 
