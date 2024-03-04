@@ -33,8 +33,34 @@ GoalPose::GoalPose()
   marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
 
   point_vect_.reserve(1000);
+  point_vect_rotated_.reserve(1000);
 
 
+  point_vect_.clear();
+  point_vect_rotated_.clear();
+
+  double minX = -1;
+  double maxX = 1;
+  double minY = -1;
+  double maxY = 1;
+  double resolution = 0.05;
+
+
+
+  for (double x = minX; x <= maxX; x += resolution)
+  {
+
+    for (double y = minY; y <= maxY; y += resolution)
+    {
+
+      costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+
+      point.x = x;
+      point.y = y;
+      point_vect_.push_back(point);
+
+    }
+  }
 
 
    
@@ -64,13 +90,14 @@ void GoalPose::localCostmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPt
   // create a grid that moves with the robot's base_link
   std::vector<geometry_msgs::msg::Point> grid;
 
-  point_vect_.clear();
-
+ // point_vect_.clear();
+//  point_vect_rotated_.clear();
+/*
   double minX = received_tf_.transform.translation.x-1;
   double maxX = received_tf_.transform.translation.x+1;
   double minY = received_tf_.transform.translation.y-1;
   double maxY = received_tf_.transform.translation.y+1;
-  double resolution = 0.2;
+  double resolution = 0.1;
 
 
 
@@ -87,12 +114,101 @@ void GoalPose::localCostmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPt
       point_vect_.push_back(point);
 
     }
+  }*/
+/*
+
+   // Apply rotation
+    double y = received_tf_.transform.rotation.y;
+    double x = received_tf_.transform.rotation.x;
+    double z = received_tf_.transform.rotation.z;
+    double w = received_tf_.transform.rotation.w;
+
+    for(const auto& point : point_vect_)
+    {
+
+      costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint poinT = point;
+
+      double x_tmp = w * poinT.x + 0 - z * poinT.y;
+      double y_tmp = w * poinT.y + z * poinT.x - 0;
+      double z_tmp = 0 + x * poinT.y - y * poinT.x;
+      double w_tmp = -x * poinT.x - y * poinT.y - 0;
+
+      poinT.x = w_tmp * -x + x_tmp * w + y_tmp * -z - z_tmp * -y;
+      poinT.y = w_tmp * -y + x_tmp * z + y_tmp * w + z_tmp * -x;
+
+      point_vect_rotated_.push_back(poinT);
+
+
+
+    }*/
+  ///// v2 of the translation + rotation of the grid points
+
+  point_vect_rotated_.clear();
+
+  for (const auto& point : point_vect_)
+  {
+
+    /*costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
+
+    // Apply translation
+    transformed_point.x = point.x + received_tf_.transform.translation.x;
+    transformed_point.y = point.y + received_tf_.transform.translation.y;
+
+      
+
+    // when using the rotation part the translation gets wrong ?!? 
+
+
+    // Apply rotation
+    double x = received_tf_.transform.rotation.x;
+    double y = received_tf_.transform.rotation.y;
+    double z = received_tf_.transform.rotation.z;
+    double w = received_tf_.transform.rotation.w;
+
+
+    double x_tmp = w * transformed_point.x + 0 - z * transformed_point.y;
+    double y_tmp = w * transformed_point.y + z * transformed_point.x - 0;
+    double z_tmp = 0 + x * transformed_point.y - y * transformed_point.x;
+    double w_tmp = -x * transformed_point.x - y * transformed_point.y - 0;
+
+    transformed_point.x = w_tmp * -x + x_tmp * w + y_tmp * -z - z_tmp * -y;
+    transformed_point.y = w_tmp * -y + x_tmp * z + y_tmp * w + z_tmp * -x;
+
+    point_vect_rotated_.push_back(transformed_point);*/
+
+  // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
+  double roll, pitch, yaw;
+  tf2::Quaternion quat;
+  tf2::fromMsg(received_tf_.transform.rotation, quat);
+  tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+
+  
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
+    // Rotate the point around the Z-axis
+    double cos_theta = cos(yaw);
+    double sin_theta = sin(yaw);
+    transformed_point.x = cos_theta * point.x - sin_theta * point.y;
+    transformed_point.y = sin_theta * point.x + cos_theta * point.y;
+
+    // Translate the point
+    transformed_point.x += received_tf_.transform.translation.x;
+    transformed_point.y += received_tf_.transform.translation.y;
+
+    point_vect_rotated_.push_back(transformed_point);
+
+
+
   }
+
+ 
 
   /// convex hull computation
   geometry_msgs::msg::Polygon convex_hull;
+//
+ // costmap_converter_polygons_->convexHullWrapper(point_vect_, convex_hull);
 
-  costmap_converter_polygons_->convexHullWrapper(point_vect_, convex_hull);
+  costmap_converter_polygons_->convexHullWrapper(point_vect_rotated_, convex_hull);
+
 
 
   costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
