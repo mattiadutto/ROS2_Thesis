@@ -1,6 +1,6 @@
 #include "nav2_custom_controller/custom_controller.hpp"
 
-// scout_working file
+// scout_mini_mpc file
 using std::hypot;
 using std::min;
 using std::max;
