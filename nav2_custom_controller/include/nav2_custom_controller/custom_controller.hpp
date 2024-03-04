@@ -144,7 +144,6 @@ class CustomController : public nav2_core::Controller
     rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
-     rclcpp::Publisher<nav_msgs::msg::GridCells>::SharedPtr grid_pub_;
      rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr tf_pub_;
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;

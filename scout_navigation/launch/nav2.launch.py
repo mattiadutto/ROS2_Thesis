@@ -28,6 +28,11 @@ def generate_launch_description():
     # Nav2 launch directory path (part of nav2_bringup pacakge)
     nav2_launch_file_dir = os.path.join(get_package_share_directory('nav2_bringup'), 'launch')
 
+    # angular_filter_example launch directory path (part of laser_filters pacakge)
+    laser_filter_launch_file_dir = os.path.join(get_package_share_directory('laser_filters'), 'examples')
+
+
+
     # Map launch config with the default map to be used
     map_dir = LaunchConfiguration(
         'map',
@@ -90,6 +95,11 @@ def generate_launch_description():
                  'rviz_config': os.path.join(rviz_dir_local, 'rviz', 'config.rviz')}.items(),
         
         
+        ),
+
+        # Launch angular_filter_example.launch.py (part of laser_filters package)
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([laser_filter_launch_file_dir, '/angular_filter_example.launch.py'])      
         ),
         # Launch EKF nodes
         Node(
