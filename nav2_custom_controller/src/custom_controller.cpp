@@ -2,6 +2,7 @@
 
 // scout_working file
 
+//
 using std::hypot;
 using std::min;
 using std::max;
