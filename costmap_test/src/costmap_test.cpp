@@ -176,7 +176,8 @@ void GoalPose::localCostmapCallback(const nav_msgs::msg::OccupancyGrid::SharedPt
 
     point_vect_rotated_.push_back(transformed_point);*/
 
-  // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
+  /// Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
+  //
   double roll, pitch, yaw;
   tf2::Quaternion quat;
   tf2::fromMsg(received_tf_.transform.rotation, quat);

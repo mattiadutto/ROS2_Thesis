@@ -157,7 +157,7 @@ void CustomController::timer_callback()
 {
 
 
-  // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
+  /// get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
 
   geometry_msgs::msg::TransformStamped received_tf;

@@ -83,7 +83,7 @@ private:
   geometry_msgs::msg::Polygon footprint_;
   
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
- // std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+ /// std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
       std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 
@@ -95,7 +95,7 @@ private:
 
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
-
+//
 
   std::vector<geometry_msgs::msg::Point> grid_;
  nav_msgs::msg::GridCells transformed_grid_;
