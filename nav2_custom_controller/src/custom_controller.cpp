@@ -147,12 +147,15 @@ template <typename Iter, typename Getter>
 
     // costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
 
+     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+
 
 
   }
 
 void CustomController::timer_callback()
 {
+
 
   // get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();

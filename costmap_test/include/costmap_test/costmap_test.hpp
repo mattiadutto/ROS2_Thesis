@@ -90,6 +90,8 @@ private:
   std::unique_ptr<costmap_converter::CostmapToPolygonsDBSMCCH> costmap_converter_polygons_;
 
   std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
+
 
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
