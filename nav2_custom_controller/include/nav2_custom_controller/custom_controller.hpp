@@ -100,6 +100,9 @@ class CustomController : public nav2_core::Controller
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
+    void calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<double>> &line_vect );
+
+
     
 
 
@@ -157,6 +160,12 @@ class CustomController : public nav2_core::Controller
     
 
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+
+     std::vector<std::vector<double>> line_eq_vect_;
+     std::vector<std::vector<double>> m_vect_;
+     std::vector<std::vector<double>> b_vect_;
+
 
 
 

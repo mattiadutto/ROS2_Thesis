@@ -2,7 +2,6 @@
 
 // scout_working file
 
-// /
 using std::hypot;
 using std::min;
 using std::max;
@@ -20,6 +19,7 @@ namespace nav2_custom_controller
 template <typename Iter, typename Getter>
   Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   {
+
   // Check if the range is empty. If so, return the 'end' iterator.
     if (begin == end)
     {
@@ -45,24 +45,13 @@ template <typename Iter, typename Getter>
   }
 
 
-
-
-
-
-
-
 // Define a lambda function for calculating Euclidean distance
   auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
     return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
   };
 
-
   CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
   {
-
-
-
-
 
   }
 
@@ -151,6 +140,7 @@ template <typename Iter, typename Getter>
 
      tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 
+  
 
 
   }
@@ -158,9 +148,19 @@ template <typename Iter, typename Getter>
 void CustomController::timer_callback()
 {
 
+// print matrix of slope and intercept of each constraint
+
+ //for(const auto& row : line_vect)
+ // {
+  //  std::cout<<row[0]<<row[1]<<std::endl;
+ // }
+
+
 
   /// get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
-  costmap_converter::ObstacleArrayConstPtr obstacles = costmap_converter_->getObstacles();
+  costmap_converter::ObstacleArrayConstPtr obstacles_ptr = costmap_converter_->getObstacles();
+
+  costmap_converter_msgs::msg::ObstacleArrayMsg obstacles = *obstacles_ptr;
 
   geometry_msgs::msg::TransformStamped received_tf;
 
@@ -181,9 +181,105 @@ void CustomController::timer_callback()
   // get the global frame 
   std::string frame_id_ = costmap_ros_->getGlobalFrameID();
 
-  costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(*obstacles);
+  costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(obstacles);
 
-  costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,*obstacles);
+  costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,obstacles);
+
+
+/*
+  for (const auto &obstacle : obstacles.obstacles)
+  {
+
+     //iterate over each vertex of the current polygon 
+    for (int j = 0; j < (int)obstacle.polygon.points.size() - 1; ++j)
+    {
+
+      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],line_eq_vect_);
+
+    }
+
+    // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
+    // vector is not empty and if the vector size is not 2 (otherwise the for loop between 2 points will be enough)
+
+    if (!obstacle.polygon.points.empty() && obstacle.polygon.points.size() != 2)
+    {
+      // calculate the equation of the line between last point and first point of the polygon
+      calcLineEquation(obstacle.polygon.points.back(),obstacle.polygon.points.front(),line_eq_vect_);
+
+    }
+
+  }*/
+
+  // test
+     line_eq_vect_.clear();
+
+   m_vect_.clear();
+   b_vect_.clear();
+   geometry_msgs::msg::Point32 p1,p2,p3;
+
+   p1.x = 1;
+   p1.y = 1;
+
+   p2.x = 3;
+   p2.y = 1;
+
+   p3.x = 2;
+   p3.y = 2;
+
+   calcLineEquation(p1,p2,line_eq_vect_);
+   calcLineEquation(p2,p3,line_eq_vect_);
+   calcLineEquation(p3,p1,line_eq_vect_);
+
+
+  //size_t num_rows = line_eq_vect_.size();
+
+// Resize m_vect_ and b_vect_ to match the size of line_eq_vect_
+m_vect_.resize(line_eq_vect_.size());
+b_vect_.resize(line_eq_vect_.size());
+
+// Initialize A_obst with the correct size
+std::vector<std::vector<double>> A_obst(line_eq_vect_.size(), std::vector<double>(2));
+
+
+  // create slope (m) and intercept (b) vectors 
+
+  for (int i=0; i<line_eq_vect_.size(); i++)
+  {
+   // for (int j=0;j<line_eq_vect_[0].size();j++)
+
+     m_vect_[i].resize(1); // Resize each row vector of m_vect_ to contain 1 element
+     b_vect_[i].resize(1); //
+    
+    m_vect_[i][0] = line_eq_vect_[i][0];
+      b_vect_[i][0] = line_eq_vect_[i][1]; 
+    
+  }
+
+
+
+
+
+   // Assign m_vect_ to the first column of A_obst
+    for (size_t i = 0; i < m_vect_.size(); ++i) 
+
+    {
+        A_obst[i][0] = m_vect_[i][0];
+        A_obst[i][1] = 1; // populate 1s in second col
+    }
+
+  
+     // Display A_obst
+    for (const auto& row : A_obst) {
+        for (int val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }
+
+
+
+
+
 
 
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
@@ -286,6 +382,18 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
   return centroid;
 }
 
+void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<double>> &line_vect )
+{
+  double slope = (p2.y - p1.y)/(p2.x - p1.x);
+  double intercept = p1.y - slope * p1.x;
+
+  std::vector<double> rowVector = {slope, intercept};
+
+  line_vect.push_back(rowVector);
+
+
+}
+
 void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
   visualization_msgs::msg::Marker line_list; // creater line_list as Marker msg
@@ -352,7 +460,7 @@ const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 
 
   // Iterate over each polygon in polygon_centroids.obstacles
-  for (const auto obstacle:polygon_centroids.obstacles)
+  for (const auto &obstacle:polygon_centroids.obstacles)
   {
     
 
