@@ -1,7 +1,7 @@
 #include "nav2_custom_controller/custom_controller.hpp"
 
 // scout_working file
-
+//
 using std::hypot;
 using std::min;
 using std::max;
@@ -52,6 +52,11 @@ template <typename Iter, typename Getter>
 
   CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
   {
+
+      std::vector<std::vector<float>> A_obst_matrix_;
+      std::vector<std::vector<float>> b_vect_;
+
+
 
   }
 
@@ -186,15 +191,64 @@ void CustomController::timer_callback()
   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons = polygon_filter(centroid,obstacles);
 
 
-/*
-  for (const auto &obstacle : obstacles.obstacles)
+  //line_eq_vect_.clear();
+
+  geometry_msgs::msg::Point32 p1,p2,p3,p4,p31,p13;
+
+
+  // look the point in which quadrant is and according to that quadrant apply -x or -y to the coordinates
+  // to account for cartesian frame otherwise the equation of the line will be calculated in cartesian frame
+  // and in this robot's frame it will represent a wrong line !!! 
+
+  // for vertical lines apply [0 -1] for horizontal lines apply [1 0] to get it right 
+  p1.x = -0.875;
+  p1.y = 0.475;
+
+  p2.x = -0.325;
+  p2.y = 0.475;
+
+  p3.x = -0.325;
+  p3.y = 0.775;
+
+ // p31.x = 0.325;
+ // p31.y = 0.775;
+
+ // p13.x = 0.875;
+ // p13.y = 0.475;
+
+ // p4.x = -0.875;
+ // p4.y = 0.475;
+
+ //std::cout<<"Slope"<<(0.475-0.775)/(-0.875-(-0.325))<<std::endl;
+// std::cout<<"Slope"<<(p3.y-p1.y)/(p3.x-p1.x)<<std::endl;
+
+ //float slope = (p3.y-p1.y)/(p3.x-p1.x);
+// std::cout<<"Slope"<<slope<<std::endl;
+  A_obst_matrix_.clear();
+  b_vect_.clear();
+
+  calcLineEquation(p1,p2,A_obst_matrix_,b_vect_);
+
+  calcLineEquation(p2,p3,A_obst_matrix_,b_vect_); // this is the case when x are equal so division by zero gives inf
+                                            // handle this case! if x are equal then we have horizontal line!
+  calcLineEquation(p3,p1,A_obst_matrix_,b_vect_);
+
+     // calcLineEquation(p31,p13,A_obst_matrix_,b_vect_);
+      //  calcLineEquation(p4,p1,line_eq_vect_);
+
+
+//NB! in the frame of the robot and map x is the vertical whyle y is horizontal
+  // fix the code to account that vertical lines in the eq must be horizontal
+  // and horizontal lines should be vertical!
+
+ /* for (const auto &obstacle : considered_polygons.obstacles)
   {
 
-     //iterate over each vertex of the current polygon 
-    for (int j = 0; j < (int)obstacle.polygon.points.size() - 1; ++j)
+     //iterate over each vertex of the current polygon (.size() - 2 to account for last vertex in the vector that is duplicate of the first vertex)
+    for (int j = 0; j < (int)obstacle.polygon.points.size() - 2; ++j)
     {
 
-      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],line_eq_vect_);
+      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],A_obst_matrix_,b_vect_);
 
     }
 
@@ -204,45 +258,29 @@ void CustomController::timer_callback()
     if (!obstacle.polygon.points.empty() && obstacle.polygon.points.size() != 2)
     {
       // calculate the equation of the line between last point and first point of the polygon
-      calcLineEquation(obstacle.polygon.points.back(),obstacle.polygon.points.front(),line_eq_vect_);
+      auto last_point = obstacle.polygon.points.end();  // Iterator to the end
+      auto prev_point = std::prev(last_point, 2);  
+      calcLineEquation(*prev_point,obstacle.polygon.points.front(),A_obst_matrix_,b_vect_);
 
     }
 
   }*/
 
   // test
-     line_eq_vect_.clear();
 
-   m_vect_.clear();
-   b_vect_.clear();
-   geometry_msgs::msg::Point32 p1,p2,p3;
-
-   p1.x = 1;
-   p1.y = 1;
-
-   p2.x = 3;
-   p2.y = 1;
-
-   p3.x = 2;
-   p3.y = 2;
-
-   calcLineEquation(p1,p2,line_eq_vect_);
-   calcLineEquation(p2,p3,line_eq_vect_);
-   calcLineEquation(p3,p1,line_eq_vect_);
-
+  // m_vect_.clear();
+  // b_vect_.clear();
+   
 
   //size_t num_rows = line_eq_vect_.size();
 
-// Resize m_vect_ and b_vect_ to match the size of line_eq_vect_
-m_vect_.resize(line_eq_vect_.size());
-b_vect_.resize(line_eq_vect_.size());
 
 // Initialize A_obst with the correct size
-std::vector<std::vector<double>> A_obst(line_eq_vect_.size(), std::vector<double>(2));
+// A_obst_matrix_(line_eq_vect_.size(), std::vector<float>(2));
 
 
   // create slope (m) and intercept (b) vectors 
-
+/*
   for (int i=0; i<line_eq_vect_.size(); i++)
   {
    // for (int j=0;j<line_eq_vect_[0].size();j++)
@@ -250,15 +288,12 @@ std::vector<std::vector<double>> A_obst(line_eq_vect_.size(), std::vector<double
      m_vect_[i].resize(1); // Resize each row vector of m_vect_ to contain 1 element
      b_vect_[i].resize(1); //
     
-    m_vect_[i][0] = line_eq_vect_[i][0];
-      b_vect_[i][0] = line_eq_vect_[i][1]; 
+     m_vect_[i][0] = line_eq_vect_[i][0];
+     b_vect_[i][0] = line_eq_vect_[i][1]; 
     
-  }
+  }*/
 
-
-
-
-
+/*
    // Assign m_vect_ to the first column of A_obst
     for (size_t i = 0; i < m_vect_.size(); ++i) 
 
@@ -267,16 +302,34 @@ std::vector<std::vector<double>> A_obst(line_eq_vect_.size(), std::vector<double
         A_obst[i][1] = 1; // populate 1s in second col
     }
 
-  
-     // Display A_obst
-    for (const auto& row : A_obst) {
-        for (int val : row) {
-            std::cout << val << " ";
+    std::cout<<std::endl;
+
+
+
+   std::cout<<std::endl;*/
+
+
+
+      
+      std::cout<<"A_obst_matrix"<<std::endl;
+
+
+      for (const auto& row : A_obst_matrix_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
         }
         std::cout << std::endl;
-    }
+      }
+
+      std::cout<<"b_vect"<<std::endl;
 
 
+      for (const auto& row : b_vect_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
 
 
 
@@ -286,7 +339,7 @@ std::vector<std::vector<double>> A_obst(line_eq_vect_.size(), std::vector<double
 
   //publishAsMarker(frame_id_, *obstacles);
 
-  //  publishAsMarker(frame_id_,considered_polygons);
+    publishAsMarker(frame_id_,considered_polygons);
 
   // publishAsMarker(frame_id_,convex_hull_array);
 
@@ -302,24 +355,36 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
   // Clear centroid.obstacles at the beginning of the function
   centroid.obstacles.clear();
 
-//int index = 0;
-//int v_index = 0;
 
+  // NB! obstacles msg accounts in .polygon.points.size() the last vertex as the first (duplicates)
+  // instead of having 3 vertices it returns 4 vertices where the last one is identical to the first one
   for (const auto &obstacle:obstacles.obstacles)
   {
     double sum_x = 0;
     double sum_y = 0;
 
-    int total_vertices = obstacle.polygon.points.size();
+    int total_vertices = obstacle.polygon.points.size()-1;
 
-    for (const auto &point:obstacle.polygon.points)
+
+    for (auto it = obstacle.polygon.points.begin(); it != std::prev(obstacle.polygon.points.end()); ++it)
     {
+      const auto &point = *it;
 
       sum_x += point.x;
       sum_y += point.y;
 
-
     }
+    
+
+/*
+    for (const auto &point:obstacle.polygon.points)
+    {
+
+     sum_x += point.x;
+     sum_y += point.y;
+
+
+    }*/
 
 
     geometry_msgs::msg::Point32 centroid_point;
@@ -328,12 +393,16 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
     centroid_point.x = sum_x/total_vertices;
     centroid_point.y = sum_y/total_vertices;
 
+
+    
+
     centroid_of_obstacle.header = obstacle.header; 
     centroid_of_obstacle.id = obstacle.id;
 
     centroid_of_obstacle.polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
 
     centroid.obstacles.push_back(centroid_of_obstacle); // Add the centroid of obstacle to the centroid obstacle array
+
 
 
   }
@@ -382,16 +451,112 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
   return centroid;
 }
 
-void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<double>> &line_vect )
+void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
 {
-  double slope = (p2.y - p1.y)/(p2.x - p1.x);
-  double intercept = p1.y - slope * p1.x;
 
-  std::vector<double> rowVector = {slope, intercept};
+  float slope,intercept;
+  std::vector<float> rowVector;
+  bool horizontal = false;
+  bool vertical = false;
+  geometry_msgs::msg::Point32 point1 = p1;
+  geometry_msgs::msg::Point32 point2 =p2;
 
-  line_vect.push_back(rowVector);
+  // do rotations from RH rule frame to Cartesian frame of each point
+
+  // if point1 is in 1st quadrant in RH frame
+  if (point1.x > 0 && point1.y < 0)
+  {
+    // rotate it to be in 4th (90 deg rotation clockwise to align with cartesian frame)
+    point1.x = point1.x * -1;
+  }
+  // 2nd quadrant
+  else if (point1.x > 0 && point1.y > 0)
+  {
+    point1.y = point1.y * -1;
+  }
+  // 3rd quadrant
+  else if (point1.x < 0 && point1.y > 0 )
+  {
+    point1.x = point1.x * -1;
+  }
+  // 4th qudrant
+  else if (point1.x < 0 && point1.y < 0)
+  {
+    point1.y = point1.y * -1;
+  }
 
 
+  if (point2.x > 0 && point2.y < 0)
+  {
+    // rotate it to be in 4th (90 deg rotation clockwise to align with cartesian frame)
+    point2.x = point2.x * -1;
+  }
+  // 2nd quadrant
+  else if (point2.x > 0 && point2.y > 0)
+  {
+    point2.y = point2.y * -1;
+  }
+  // 3rd quadrant
+  else if (point2.x < 0 && point2.y > 0 )
+  {
+    point2.x = point2.x * -1;
+
+
+  }
+  // 4th qudrant
+  else if (point2.x < 0 && point2.y < 0)
+  {
+    point2.y = point2.y * -1;
+  }
+
+
+
+  slope = (point2.y - point1.y)/(point2.x - point1.x);
+  std::cout<<"Slope: "<<slope<<std::endl;
+  
+  // handle horizontal line case (in RH convention its horizontal line as y is positive left of the origin and x is positive above the origin)
+  if (slope == std::numeric_limits<float>::infinity() || slope == -std::numeric_limits<float>::infinity())
+  {
+    slope = 1;
+    intercept = point1.x;
+    horizontal = true;
+
+    // second col of A matrix must be 0 as y = 0 !
+  }
+  else if (slope == 0)
+  {
+    vertical = true;
+    intercept = point1.y;
+  }
+  else 
+  {
+   intercept = point1.y - slope * point1.x;
+  }
+
+  if (horizontal == true) 
+  {
+    rowVector = {slope, 0};
+    intercept = intercept * -1;
+  }
+  else if (vertical == true) // for vertical lines (y must be -y)
+  {
+    rowVector = {slope, -1};
+    intercept = intercept * -1;
+
+  }
+  else
+  {
+    rowVector = {slope, 1};
+  }
+
+  A_matrix.push_back(rowVector);
+  b_vect.push_back({intercept});
+
+}
+
+void checkConstraint(const geometry_msgs::msg::Point32 &p1)
+{
+  // multiply Amatrix * [p1.x ; p1.y] - b_vect = ? if negative constraint is satisfied if positive constraint is not satisfied
 }
 
 void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
@@ -450,7 +615,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
 //// NB combine polygon_filter and computeCentroid to be filterPolygons function !!!!
 
 costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
-const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+ costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
 
   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons;
@@ -458,11 +623,14 @@ const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 
   int index=0;
 
+ // obstacles.obstacles[index].polygon.points.clear();
 
   // Iterate over each polygon in polygon_centroids.obstacles
   for (const auto &obstacle:polygon_centroids.obstacles)
   {
-    
+
+
+
 
     // get euclidean distance between current polygon's centroid and robot's pose
     double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
@@ -470,16 +638,65 @@ const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
     if (distance < thresh)
     {
+       // obstacles.obstacles[index].polygon.points.clear();
 
-      // store in considered_polygon the obstacle to which the computed centroid refers to
-      considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+/*      geometry_msgs::msg::Point32 centroid_point;
+
+      
+      for (auto it = obstacles.obstacles[index].polygon.points.begin(); it != std::prev(obstacles.obstacles[index].polygon.points.end()); ++it)
+      {    
+        // store in considered_polygon the obstacle to which the computed centroid refers to
+      //considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+
+        auto &point = *it;
+
+        centroid_point = point;
+
+        obstacles.obstacles[index].polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
+
+
+      }*/
+
+
+
+      //  considered_polygons.obstacles.push_back(obstacles.obstacles[index]); // Add the centroid of obstacle to the centroid obstacle array
+
+            considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+
+
+      }
+
+    index++;
 
     }
 
-    index++;
-  }
+  
+
   // Return the vector container with considered polygons below the threshold
   std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
+//  std::cout<<"Number of vertiecs of first polygon:"<<considered_polygons.obstacles[0].polygon.points.size()<<std::endl;
+ 
+if (obstacles.obstacles.size() != 0)
+  {
+
+ //   std::cout<<"Total vertices not considered: "<< obstacles.obstacles[0].polygon.points.size()<<std::endl;
+}
+
+  if (considered_polygons.obstacles.size() != 0)
+  {
+
+    std::cout<<"Total vertices: "<< considered_polygons.obstacles[0].polygon.points.size()<<std::endl;
+
+    int index =0 ;
+    for (const auto& vertex : considered_polygons.obstacles[0].polygon.points)
+    {
+      
+    //  std::cout<<"Vertex "<< index<<std::endl;
+    //  std::cout<< "x = "<<vertex.x<<std::endl;
+    //  std::cout<< "y = "<<vertex.y<<std::endl;
+      index++;
+    }
+  }
   return considered_polygons;
 }
 

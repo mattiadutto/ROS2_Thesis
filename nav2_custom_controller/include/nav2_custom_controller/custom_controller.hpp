@@ -1,7 +1,7 @@
 #ifndef NAV2_CUSTOM_CONTROLLER__CUSTOM_CONTROLLER_HPP_
 #define NAV2_CUSTOM_CONTROLLER__CUSTOM_CONTROLLER_HPP_
 
-
+#include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
@@ -95,12 +95,12 @@ class CustomController : public nav2_core::Controller
 
     costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
-    costmap_converter_msgs::msg::ObstacleArrayMsg  polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &poylgon_centroids, const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
+    costmap_converter_msgs::msg::ObstacleArrayMsg  polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &poylgon_centroids,  costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
-    void calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<double>> &line_vect );
+    void calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
 
     
@@ -162,9 +162,10 @@ class CustomController : public nav2_core::Controller
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
 
-     std::vector<std::vector<double>> line_eq_vect_;
-     std::vector<std::vector<double>> m_vect_;
-     std::vector<std::vector<double>> b_vect_;
+    // std::vector<std::vector<float>> line_eq_vect_;
+  //   std::vector<std::vector<float>> m_vect_;
+     std::vector<std::vector<float>> b_vect_;
+     std::vector<std::vector<float>> A_obst_matrix_;
 
 
 
