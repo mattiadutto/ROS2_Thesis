@@ -53,8 +53,20 @@ template <typename Iter, typename Getter>
   CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
   {
 
-      std::vector<std::vector<float>> A_obst_matrix_;
-      std::vector<std::vector<float>> b_vect_;
+     // std::vector<std::vector<float>> A_obst_matrix_;
+     // std::vector<std::vector<float>> b_vect_;
+      //std::vector<std::vector<float>> A_most_violated_matrix_;
+          A_obst_matrix_.push_back({0.0,0.0});
+          b_vect_.push_back({0.0});
+
+
+
+      A_most_violated_matrix_.push_back({0.0,0.0});
+      b_most_violated_vect_.push_back({0.0});
+     
+
+    //  std::vector<std::vector<float>> b_most_violated_vect_;
+
 
 
 
@@ -193,7 +205,7 @@ void CustomController::timer_callback()
 
   //line_eq_vect_.clear();
 
-  geometry_msgs::msg::Point32 p1,p2,p3,p4,p31,p13;
+  geometry_msgs::msg::Point32 p1,p2,p3,p4,p31,p13,p_check;
 
 
   // look the point in which quadrant is and according to that quadrant apply -x or -y to the coordinates
@@ -209,6 +221,9 @@ void CustomController::timer_callback()
 
   p3.x = -0.325;
   p3.y = 0.775;
+
+  p_check.x = -0.2;
+  p_check.y = 0;
 
  // p31.x = 0.325;
  // p31.y = 0.775;
@@ -232,6 +247,16 @@ void CustomController::timer_callback()
   calcLineEquation(p2,p3,A_obst_matrix_,b_vect_); // this is the case when x are equal so division by zero gives inf
                                             // handle this case! if x are equal then we have horizontal line!
   calcLineEquation(p3,p1,A_obst_matrix_,b_vect_);
+
+  
+
+  //A_most_violated_matrix_.resize(1, std::vector<float>(2, 0.0)); // Resize to have 1 row and 2 columns
+ // b_most_violated_vect_.resize(1, std::vector<float>(1, 0.0)); // Resize to have 1 row and 1 column
+  
+
+  //A_most_violated_matrix.push_back({0.0,0.0});
+
+  checkConstraint(p_check,A_obst_matrix_,b_vect_,A_most_violated_matrix_,b_most_violated_vect_);
 
      // calcLineEquation(p31,p13,A_obst_matrix_,b_vect_);
       //  calcLineEquation(p4,p1,line_eq_vect_);
@@ -325,6 +350,27 @@ void CustomController::timer_callback()
 
 
       for (const auto& row : b_vect_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+
+      std::cout<<"A_most_violated_matrix"<<std::endl;
+
+
+      for (const auto& row : A_most_violated_matrix_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      std::cout<<"b_most_violated_vector"<<std::endl;
+
+
+      for (const auto& row : b_most_violated_vect_) {
         for (const auto& val : row) {
           std::cout << val << " ";
         }
@@ -512,7 +558,7 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
 
 
   slope = (point2.y - point1.y)/(point2.x - point1.x);
-  std::cout<<"Slope: "<<slope<<std::endl;
+  //std::cout<<"Slope: "<<slope<<std::endl;
   
   // handle horizontal line case (in RH convention its horizontal line as y is positive left of the origin and x is positive above the origin)
   if (slope == std::numeric_limits<float>::infinity() || slope == -std::numeric_limits<float>::infinity())
@@ -554,9 +600,55 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
 
 }
 
-void checkConstraint(const geometry_msgs::msg::Point32 &p1)
+void CustomController::checkConstraint(const geometry_msgs::msg::Point32 &p1,const std::vector<std::vector<float>> &A_obst_matrix,const std::vector<std::vector<float>> &b_vect,std::vector<std::vector<float>> &A_most_violated_matrix,std::vector<std::vector<float>> &b_most_violated_vect)
 {
   // multiply Amatrix * [p1.x ; p1.y] - b_vect = ? if negative constraint is satisfied if positive constraint is not satisfied
+  int index = 0;
+  int largest_column_index = 0;
+  std::vector<float> rowVector;
+  float b;
+  //std::vector<std::vector<float>> result_vect;
+  std::vector<std::vector<float>> A_violated_matrix,b_violated_vect;
+
+  float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
+  if (!A_obst_matrix.empty() && !b_vect.empty())
+  {
+
+  for (size_t row = 0; row < A_obst_matrix.size(); row++)
+  {
+    float result = (A_obst_matrix[row][0] * p1.x + A_obst_matrix[row][1] * p1.y) - b_vect[row][0];
+    if(result > 0)
+    {
+      rowVector = {A_obst_matrix[row][0],A_obst_matrix[row][1]};
+      b = b_vect[row][0];
+      A_violated_matrix.push_back(rowVector); // will store slope of violated constraints
+      b_violated_vect.push_back({b}); // will store intercepts of violated constraints
+      //result_vect.push_back({result}); // will store only positive values
+
+      std::cout<<"Violated constraint "<<index<<" value"<<result<<std::endl;
+
+
+      // Check if the current result is the largest
+      if (result > largest)
+      {
+        largest = result;
+        largest_column_index = index; // Store the current column index
+      }
+          index ++;
+    }
+  }
+      if(!A_violated_matrix.empty()  && !b_violated_vect.empty() )
+      {
+
+        std::cout<<"I was here 2!"<<std::endl;
+      A_most_violated_matrix[0][0] = A_violated_matrix[largest_column_index][0];
+      A_most_violated_matrix[0][1] = A_violated_matrix[largest_column_index][1];
+      b_most_violated_vect[0][0] = b_violated_vect[largest_column_index][0];
+      }
+
+    }
+
+
 }
 
 void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)

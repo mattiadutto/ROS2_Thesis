@@ -102,6 +102,7 @@ class CustomController : public nav2_core::Controller
 
     void calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
+    void checkConstraint(const geometry_msgs::msg::Point32 &p1,const std::vector<std::vector<float>> &A_obst_matrix,const std::vector<std::vector<float>> &b_vect,std::vector<std::vector<float>> &A_most_violated_matrix,std::vector<std::vector<float>> &b_most_violated_vect);
 
     
 
@@ -166,6 +167,9 @@ class CustomController : public nav2_core::Controller
   //   std::vector<std::vector<float>> m_vect_;
      std::vector<std::vector<float>> b_vect_;
      std::vector<std::vector<float>> A_obst_matrix_;
+     std::vector<std::vector<float>> A_most_violated_matrix_;
+     std::vector<std::vector<float>> b_most_violated_vect_;
+
 
 
 
