@@ -95,14 +95,14 @@ class CustomController : public nav2_core::Controller
 
     costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
-    costmap_converter_msgs::msg::ObstacleArrayMsg  polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &poylgon_centroids,  costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
-
+    void polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
+    const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid);
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
-    void calcLineEquation(const geometry_msgs::msg::Point32 &p1, const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
+    void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
-    void checkConstraint(const geometry_msgs::msg::Point32 &p1,const std::vector<std::vector<float>> &A_obst_matrix,const std::vector<std::vector<float>> &b_vect,std::vector<std::vector<float>> &A_most_violated_matrix,std::vector<std::vector<float>> &b_most_violated_vect);
+    void checkConstraint(const geometry_msgs::msg::PoseStamped  &pose,const std::vector<std::vector<float>> &A_obst_matrix,const std::vector<std::vector<float>> &b_vect,std::vector<std::vector<float>> &A_most_violated_matrix,std::vector<std::vector<float>> &b_most_violated_vect);
 
     
 
@@ -169,6 +169,10 @@ class CustomController : public nav2_core::Controller
      std::vector<std::vector<float>> A_obst_matrix_;
      std::vector<std::vector<float>> A_most_violated_matrix_;
      std::vector<std::vector<float>> b_most_violated_vect_;
+
+
+       std::vector<std::vector<float>> A_violated_matrix,b_violated_vect;
+
 
 
 

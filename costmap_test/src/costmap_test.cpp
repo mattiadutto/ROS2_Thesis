@@ -233,6 +233,8 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
   
 }
 
+
+
 void GoalPose::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
 

@@ -59,6 +59,8 @@ public:
   void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
 
+
+
 private:
   // ROS topic publishers/subscribers
   rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr clicked_point_sub;
