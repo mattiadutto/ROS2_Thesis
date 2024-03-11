@@ -17,6 +17,8 @@ find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(costmap_converter REQUIRED)
+find_package(costmap_converter_msgs REQUIRED)
+
 
 nav2_package()
 
@@ -34,11 +36,16 @@ set(dependencies
   nav2_core
   tf2
   costmap_converter
+  costmap_converter_msgs
+
+
 )
 
 add_library(nav2_custom_controller SHARED
         src/custom_controller.cpp
-        src/feedback_lin.cpp)
+        src/feedback_lin.cpp
+        src/convex_hull.cpp
+      )
 
 # prevent pluginlib from using boost
 target_compile_definitions(nav2_custom_controller PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")

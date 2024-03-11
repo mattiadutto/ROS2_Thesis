@@ -138,7 +138,7 @@ template <typename Iter, typename Getter>
 
     // Publishers and Subscribers
 
-    obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 1);
+    obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 100);
 
     polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
 
@@ -157,6 +157,38 @@ template <typename Iter, typename Getter>
 
      tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 
+     //create grid of points 
+
+  point_vect_.reserve(1000);
+  point_vect_rotated_.reserve(1000);
+
+
+  point_vect_.clear();
+  point_vect_rotated_.clear();
+
+  double minX = -1;
+  double maxX = 1;
+  double minY = -1;
+  double maxY = 1;
+  double resolution = 0.02;
+
+
+
+  for (double x = minX; x <= maxX; x += resolution)
+  {
+
+    for (double y = minY; y <= maxY; y += resolution)
+    {
+
+      costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+
+      point.x = x;
+      point.y = y;
+      point_vect_.push_back(point);
+
+    }
+  }
+
   
 
 
@@ -164,6 +196,43 @@ template <typename Iter, typename Getter>
 
 void CustomController::timer_callback()
 {
+
+
+
+  point_vect_rotated_.clear();
+
+  for (const auto& point : point_vect_)
+  {
+
+    
+  double roll, pitch, yaw;
+  tf2::Quaternion quat;
+  tf2::fromMsg(received_tf_.transform.rotation, quat);
+  tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+
+  
+    costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
+    // Rotate the point around the Z-axis
+    double cos_theta = cos(yaw);
+    double sin_theta = sin(yaw);
+    transformed_point.x = cos_theta * point.x - sin_theta * point.y;
+    transformed_point.y = sin_theta * point.x + cos_theta * point.y;
+
+    // Translate the point
+    transformed_point.x += received_tf_.transform.translation.x;
+    transformed_point.y += received_tf_.transform.translation.y;
+
+    point_vect_rotated_.push_back(transformed_point);
+
+
+  }
+
+
+
+
+
+
+
 
 // print matrix of slope and intercept of each constraint
 
@@ -179,12 +248,17 @@ void CustomController::timer_callback()
 
   costmap_converter_msgs::msg::ObstacleArrayMsg obstacles = *obstacles_ptr;
 
-  geometry_msgs::msg::TransformStamped received_tf;
+
+
+    //  obstacle_pub_->publish(*obstacles_ptr);
+
+
+ // geometry_msgs::msg::TransformStamped received_tf_;
 
   try
   { 
 
-   received_tf = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
+   received_tf_ = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
 
   } catch (tf2::LookupException &ex)
   {
@@ -192,7 +266,7 @@ void CustomController::timer_callback()
     RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
   }
 
-  tf_pub_->publish(received_tf);
+  tf_pub_->publish(received_tf_);
 
 
   // get the global frame 
@@ -271,15 +345,17 @@ void CustomController::timer_callback()
 
 
 
-  A_violated_matrix.clear();
-  b_violated_vect.clear();
+  A_violated_matrix_.clear();
+  b_violated_vect_.clear();
+  result_pose_stored_.clear();
   A_most_violated_matrix_.clear();
   b_most_violated_vect_.clear();
+  A_obst_matrix_.clear();
+  b_vect_.clear();
   int it=0;
   for (const auto &obstacle : considered_polygons.obstacles)
   {
-    A_obst_matrix_.clear();
-    b_vect_.clear();
+    
      //iterate over each vertex of the current polygon (.size() - 2 to account for last vertex in the vector that is duplicate of the first vertex)
       
     for (int j = 0; j < (int)obstacle.polygon.points.size() - 2; ++j)
@@ -307,52 +383,108 @@ void CustomController::timer_callback()
 
     std::cout<<"Centroid x: "<<considered_centroid.obstacles[it].polygon.points[0].x<<" y: "<<considered_centroid.obstacles[it].polygon.points[0].y<<std::endl;
 
+  it++;
+
+// compute_violated_constraints(A_matrix,b vector ..) -> this will provide the violated constraints given a vector of 4 points (robot footprint) and centroid
+// then bool isViolated() -> this should return bool if for a given point and A_matrix and b_vector if the points satisfy the constraints or not
+  // in that case I should pass the grid points and the most violated constraints that were found 
+
+  // compute_most_violated_constraints()
+
+
+
+
+
+// adding the most violated per each polygon
+
+   float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
+
+   int largest_index = 0;
+
+      
+    //for (const auto &result : result_pose_stored_)
+
+      for (size_t row = 0; row < result_pose_stored_.size(); row++)
+      {
+        if(result_pose_stored_[row][0] > largest)
+        {
+          largest = result_pose_stored_[row][0];
+          largest_index = row;
+        }
+      }
+    
+ 
+    
+
+    if(!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
+    {
+
+      A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+      b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
+      A_violated_matrix_.clear();
+      b_violated_vect_.clear();
+      result_pose_stored_.clear();
+   
+
+    }
+
    // checkConstraint(robot_pose_,A_obst_matrix_,b_vect_,A_most_violated_matrix_,b_most_violated_vect_);
-    it++;
+
 
   }
 
-  // test
+  // for each point in point_vect_rotated call it in isViolated() if it returns false it means it satisfy so we need to 
+  // add that point to point_vect_constrained
 
-  // m_vect_.clear();
-  // b_vect_.clear();
+
+   point_vect_constrained_.clear();
+
+  for (const auto& point : point_vect_rotated_)
+  {
+    //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint constrained_point;
+
+  //  std::cout<<"Pass"<<std::endl;
+
+    if (isViolated(point,A_most_violated_matrix_,b_most_violated_vect_) == false)
+    {
+      point_vect_constrained_.push_back(point);
+
+     //     std::cout<<"isViolated false"<<std::endl;
+
+    }
+  }
+
+  std::cout<<"Size of point vect constraint"<<point_vect_constrained_.size()<<std::endl;
+
+
+
+  // compute convex hull
+
+  //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+
+  Polygon polygon(point_vect_constrained_);
+  auto convexHull = polygon.ComputeConvexHull();
+
+ costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
+
+  // Create an ObstacleMsg to hold the convex hull
+  costmap_converter_msgs::msg::ObstacleMsg obstacle_msg;
+
+// Add the points of the convex hull to the ObstacleMsg
+  for (const auto& point : convexHull)
+   {
+    geometry_msgs::msg::Point32 point32;
+    point32.x = point.x;
+    point32.y = point.y;
+    obstacle_msg.polygon.points.push_back(point32);
+  }
+
+  convex_hull_array.obstacles.resize(1); // Make sure the vector has at least 1 element
+  convex_hull_array.obstacles[0] = obstacle_msg;
+
    
 
-  //size_t num_rows = line_eq_vect_.size();
 
-
-// Initialize A_obst with the correct size
-// A_obst_matrix_(line_eq_vect_.size(), std::vector<float>(2));
-
-
-  // create slope (m) and intercept (b) vectors 
-/*
-  for (int i=0; i<line_eq_vect_.size(); i++)
-  {
-   // for (int j=0;j<line_eq_vect_[0].size();j++)
-
-     m_vect_[i].resize(1); // Resize each row vector of m_vect_ to contain 1 element
-     b_vect_[i].resize(1); //
-    
-     m_vect_[i][0] = line_eq_vect_[i][0];
-     b_vect_[i][0] = line_eq_vect_[i][1]; 
-    
-  }*/
-
-/*
-   // Assign m_vect_ to the first column of A_obst
-    for (size_t i = 0; i < m_vect_.size(); ++i) 
-
-    {
-        A_obst[i][0] = m_vect_[i][0];
-        A_obst[i][1] = 1; // populate 1s in second col
-    }
-
-    std::cout<<std::endl;
-
-
-
-   std::cout<<std::endl;*/
 
 
  std::cout<<"A_obst_matrix"<<std::endl;
@@ -382,7 +514,7 @@ void CustomController::timer_callback()
       std::cout<<"A_violated_matrix"<<std::endl;
 
 
-      for (const auto& row : A_violated_matrix) {
+      for (const auto& row : A_violated_matrix_) {
         for (const auto& val : row) {
           std::cout << val << " ";
         }
@@ -392,7 +524,7 @@ void CustomController::timer_callback()
       std::cout<<"b_violated_vect"<<std::endl;
 
 
-      for (const auto& row : b_violated_vect) {
+      for (const auto& row : b_violated_vect_) {
         for (const auto& val : row) {
           std::cout << val << " ";
         }
@@ -400,7 +532,26 @@ void CustomController::timer_callback()
       }
 
 
-     
+           
+      std::cout<<"A_most_violated_matrix"<<std::endl;
+
+
+      for (const auto& row : A_most_violated_matrix_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      std::cout<<"b_most_violated_vect"<<std::endl;
+
+
+      for (const auto& row : b_most_violated_vect_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
 
 
 
@@ -410,10 +561,68 @@ void CustomController::timer_callback()
 
   //publishAsMarker(frame_id_, *obstacles);
 
-    publishAsMarker(frame_id_,considered_polygons);
+   // publishAsMarker(frame_id_,considered_polygons);
 
-  // publishAsMarker(frame_id_,convex_hull_array);
+   publishAsMarker(frame_id_,convex_hull_array);
 
+
+
+}
+
+// will determine if a point is inside set of constraints
+bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector)
+{
+
+  // perform a loop through A_matrix and check for each line constraint if the current point satisfies it
+  // if all constraints are satisfied or violated return the bool
+
+  std::vector<std::vector<float>> b_vect = b_vector;
+
+  int num_constraints = A_matrix.size();
+
+  int count = 0;
+
+  for (size_t row = 0; row < A_matrix.size();row++)
+  {
+    if(A_matrix[row][0] == 1) // the equation for the horizontal line is flipped (equation describing line below robot is actually above)
+                              // in order to get the right representation the intercept's sign should be flipped
+    {
+      b_vect[row][0] = b_vect[row][0]*-1; 
+    }
+
+    float result = (A_matrix[row][0] * point.x + A_matrix[row][1] * point.y) - b_vect[row][0];
+
+
+
+    if (b_vect[row][0] < 0 ) // if intercept is negative
+    {
+      if (result > 0 ) // point satisfy the constraint 
+        // && A_matrix[row][0] != 1
+      {
+        count++;
+      }
+    }
+    else if (b_vect[row][0] > 0) //if intercept is positive
+    {
+      if (result < 0) // point satisfy the constraint
+      {
+        count++;
+      }
+
+
+    }
+
+  }
+
+  if (count == num_constraints) // all constraints are satisfied, therefore point satisfy 
+  {
+    return false; // return that point does not violate the constraints
+  }
+  else
+  {
+    return true; // if at least one constraint is violated, the point does not satisfy
+  }
+  
 
 }
 
@@ -619,6 +828,8 @@ if (obstacles.obstacles.size() != 0)
   
 }
 
+
+//NB! consider the footprint of the robot not the origin when checking if constraints violates ( need to add +0.35 and -0.35 on both size for the x and +0.25 and -0.25 on the y)
 void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
 {
 
@@ -626,59 +837,7 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   std::vector<float> rowVector;
   geometry_msgs::msg::Point32 point1 = p1;
   geometry_msgs::msg::Point32 point2 = p2;
-    geometry_msgs::msg::Point32 centroid_point = p3_centroid;
-
-
-  // do rotations from RH rule frame to Cartesian frame of each point
-/*
-  // if point1 is in 1st quadrant in RH frame
-  if (point1.x > 0 && point1.y < 0)
-  {
-    // rotate it to be in 4th (90 deg rotation clockwise to align with cartesian frame)
-    //point1.x = point1.x * -1;
-    first = true;
-  }
-  // 2nd quadrant
-  else if (point1.x > 0 && point1.y > 0)
-  {
-    //point1.y = point1.y * -1;
-  }
-  // 3rd quadrant
-  else if (point1.x < 0 && point1.y > 0 )
-  {
-    //point1.x = point1.x * -1;
-  }
-  // 4th qudrant
-  else if (point1.x < 0 && point1.y < 0)
-  {
-    //point1.y = point1.y * -1;
-  }
-
-
-  if (point2.x > 0 && point2.y < 0)
-  {
-    // rotate it to be in 4th (90 deg rotation clockwise to align with cartesian frame)
-    //point2.x = point2.x * -1;
-  }
-  // 2nd quadrant
-  else if (point2.x > 0 && point2.y > 0)
-  {
-    //point2.y = point2.y * -1;
-  }
-  // 3rd quadrant
-  else if (point2.x < 0 && point2.y > 0 )
-  {
-    //point2.x = point2.x * -1;
-
-
-  }
-  // 4th qudrant
-  else if (point2.x < 0 && point2.y < 0)
-  {
-    //point2.y = point2.y * -1;
-   // fourth == true;
-  }*/
-
+  geometry_msgs::msg::Point32 centroid_point = p3_centroid;
 
   // calculate slope "m"
 
@@ -689,8 +848,8 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   // if the slope is -inf or inf we have horizontal line
   if (slope == std::numeric_limits<float>::infinity() || slope == -std::numeric_limits<float>::infinity())
   {
-    slope = -1;
-    intercept = point1.x;
+    slope = 1; // before slope had inverted sign
+    intercept = -point1.x; //before intercept had the original non-inverted value of x
     rowVector = {slope, 0};
   }
   else if (slope == 0) // vertical line
@@ -710,70 +869,105 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   b_vect.push_back({intercept});
 
 
-  /// check constraint function fusion
+ /// check violation of constraints
 
-  int index = 0;
   int largest_column_index = 0;
   std::vector<float> rowVector2;
   float b,b2;
   //std::vector<std::vector<float>> result_vect;
 
-  // make them private members for now later pass them by out param!!!
+  // make them private members for now later pass them by out param!!! NB!!!!!!!!!!!!!!!!///////////////////////////////////////
  // std::vector<std::vector<float>> A_violated_matrix,b_violated_vect;
 
-   float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
   //float smallest = std::numeric_limits<float>::max();
   if (!A_matrix.empty() && !b_vect.empty())
   {
 
+
+    // idea to account for the robot's footprint not origin point 
+    // consider the robot as rectangle box 
+    // define its 4 corner coordinates and if the linear constraint is violated by all 4 points, then
+    // it means that the robot violates the constraint (see if left and right of robot origin makes difference)
+    // if 1 of the 4 points satisfy the constraint, then that line is passing through the robot's footprint
+
+    // i can pass a vector of the 4 points and itterate in for loop
+    // to get the result_pose of each point, compare it with result_centroid if violatetes then
+    // increase a counter (which resets after the for loop) and only when we have a count of 4 
+    // this will mean that all 4 points of the footrpint lie on the other half plane from the 
+    // centroid, then this line constraint should be added to violated matrix
     bool horizontal_violation = false;
 
-
-
-   
-    
-      // access last row of A_matrix with [A_matrix.size()-1] and b_vector
-      float result_pose = (A_matrix[A_matrix.size()-1][0] * pose.pose.position.x + A_matrix[A_matrix.size()-1][1] * pose.pose.position.y) - b_vect[b_vect.size()-1][0];
-      float result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
-
-      if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
+    // access last row of A_matrix with [A_matrix.size()-1] and b_vector
+    float result_pose = (A_matrix[A_matrix.size()-1][0] * pose.pose.position.x + A_matrix[A_matrix.size()-1][1] * pose.pose.position.y) - b_vect[b_vect.size()-1][0];
+    float result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
+    std::cout<<"Result pose"<<result_pose<<std::endl;
+    std::cout<<"Result centroid"<<result_centroid<<std::endl;
+    if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
+    {
+      if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
       {
-        std::cout<<"Entered horizontal line if statement"<<std::endl;
-        if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
-        {
-          std::cout<<"Results is same sign"<<std::endl;
-
-
-          horizontal_violation=true;
-        }
+        horizontal_violation=true;
       }
-      
-      if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0  || horizontal_violation == true) // if their signs are different, then the current constraint is violated by the robot
+    }
+    if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0  || horizontal_violation == true) // if their signs are different, then the current constraint is violated by the robot
                                                                                   // if their product is 0 it means that the centroid lies on the line (2 points line)
-      {
+    {
 
        // rowVector2 = {A_matrix[row][0],A_matrix[row][1]};
        // b = b_vect[row][0];
        // A_violated_matrix.push_back(rowVector2); // will store slope of violated constraints
        // b_violated_vect.push_back({b}); // will store intercepts of violated constraints 
 
-        A_violated_matrix.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
-        b_violated_vect.push_back({b_vect[b_vect.size()-1][0]});
+      A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
+      b_violated_vect_.push_back({b_vect[b_vect.size()-1][0]});
+      result_pose_stored_.push_back({result_pose,0});
        // std::cout<<"Violated constraint "<<index<<" value"<<result<<std::endl;
-
       }
+
+    }
 
       //index ++;
    //   horizontal_violation = false;
 
-      // continue with most violated constraint
-   
-   
+/////// CODE for calculating the most violated constraint and saving it in A and b matrix /////////////
+    //int index = 0;
+    /*
+    int largest_index = 0;
 
+      
+    //for (const auto &result : result_pose_stored_)
 
- }
+      for (size_t row = 0; row < result_pose_stored_.size(); row++)
+      {
+        if(result_pose_stored_[row][0] > largest)
+        {
+          largest = result_pose_stored_[row][0];
+          largest_index = row;
+        }
+      }
+    
+      // find the largest value 
+      /*
+      if (result > largest)
+      {
+        largest = result;
+        largest_index = index; // keep track of the index
+      }
+      index++; 
+    
+
+    if(!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
+    {
+
+      A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+      b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
+
+    }
+
+*/
+ 
 }
-
+/*
 void CustomController::checkConstraint(const geometry_msgs::msg::PoseStamped  &pose,const std::vector<std::vector<float>> &A_obst_matrix,const std::vector<std::vector<float>> &b_vect,std::vector<std::vector<float>> &A_most_violated_matrix,std::vector<std::vector<float>> &b_most_violated_vect)
 {
   // multiply Amatrix * [p1.x ; p1.y] - b_vect = ? if negative constraint is satisfied if positive constraint is not satisfied
@@ -837,7 +1031,7 @@ void CustomController::checkConstraint(const geometry_msgs::msg::PoseStamped  &p
     }
 
   }
-}
+} */
 
 void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
@@ -898,7 +1092,6 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
 
 void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose) 
 {
-
 
   robot_pose_.pose.position.x = amcl_pose.pose.pose.position.x;
   robot_pose_.pose.position.y = amcl_pose.pose.pose.position.y;
@@ -972,6 +1165,8 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
 
   // calculate point P at a distance epsilon from the robot
   feedback_lin_.calcPointP(pose, yaw, epsilon_);
+
+  //wrapper_.ConvexHull(received_tf_);
 
   // Apply proportional control for trajectory tracking without feed forward term
   double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 2.5;

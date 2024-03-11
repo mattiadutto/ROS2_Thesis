@@ -6,6 +6,13 @@
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
+// Define a lambda function for calculating Euclidean distance
+  auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
+    return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
+  };
+
+
+
 GoalPose::GoalPose()
 : Node("goal_pose_node")
 {
@@ -32,6 +39,9 @@ GoalPose::GoalPose()
 
   marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
 
+  pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&GoalPose::pose_sub_callback, this,std::placeholders::_1));
+
+  obstacles_sub_ = this->create_subscription<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles",100,std::bind(&GoalPose::obstacles_sub_callback,this,std::placeholders::_1));
   point_vect_.reserve(1000);
   point_vect_rotated_.reserve(1000);
 
@@ -195,6 +205,9 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
     transformed_point.x += received_tf_.transform.translation.x;
     transformed_point.y += received_tf_.transform.translation.y;
 
+
+    // perform check for each point if it satisfies the most violated constraints
+
     point_vect_rotated_.push_back(transformed_point);
 
 
@@ -203,11 +216,257 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
 
  
 
+//////////// code for linear constraints and considered polygons
+
+
   /// convex hull computation
   geometry_msgs::msg::Polygon convex_hull;
 //
  // costmap_converter_polygons_->convexHullWrapper(point_vect_, convex_hull);
 
+ costmap_converter::ObstacleArrayPtr obstacles_ptr;
+ // = boost::make_shared<costmap_converter_msgs::msg::ObstacleArrayMsg>();
+//costmap_converter_msgs::msg::ObstacleArrayMsg obstacles;
+
+// not receiving polygons !!!!
+ //costmap_converter::PolygonContainerConstPtr polygons = costmap_converter_polygons_->getPolygons();
+  //    if (polygons)
+   //   {
+    //    for (const auto& polygon : *polygons)
+     //   {
+      //    obstacles_ptr->obstacles.emplace_back();
+       //   obstacles_ptr->obstacles.back().polygon = polygon;
+       // }
+        // obstacles = *obstacles_ptr;
+
+
+      //}
+
+    //  std::cout<<"obstacles"<<obstacles.obstacles[0].polygon.points[0].x<<std::endl;
+  
+
+
+
+
+// instantiate considered_polygons and considered_centroid
+  costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons;
+
+  costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
+
+  costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(obstacles);
+
+
+// will save in out parameter considered_polygons and considered_centroid only the polygons below a threshold
+  polygon_filter(centroid,obstacles,considered_polygons,considered_centroid);
+
+
+
+  A_violated_matrix_.clear();
+  b_violated_vect_.clear();
+  result_pose_stored_.clear();
+  A_most_violated_matrix_.clear();
+  b_most_violated_vect_.clear();
+  A_obst_matrix_.clear();
+  b_vect_.clear();
+  int it=0;
+  for (const auto &obstacle : considered_polygons.obstacles)
+  {
+    
+     //iterate over each vertex of the current polygon (.size() - 2 to account for last vertex in the vector that is duplicate of the first vertex)
+      
+    for (int j = 0; j < (int)obstacle.polygon.points.size() - 2; ++j)
+
+      /////NB!!//// HANDLE THE CASE WHEN ONLY 2 VERTICES ARE SENT WHEN WE HAVE A LINE NOT A POLYGON !!!!! 
+
+   // for (int j = 0; j < (int)obstacle.polygon.points.size() - 1; ++j) 
+    {
+
+      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+
+    }
+
+    // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
+    // vector is not empty and if the vector size is not 2 (otherwise the for loop between 2 points will be enough)
+
+    if (!obstacle.polygon.points.empty() && obstacle.polygon.points.size() != 2)
+    {
+      // calculate the equation of the line between last point and first point of the polygon
+      auto last_point = obstacle.polygon.points.end();  
+      auto prev_point = std::prev(last_point, 2);  
+      calcLineEquation(*prev_point,obstacle.polygon.points.front(),robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+
+    }
+
+    std::cout<<"Centroid x: "<<considered_centroid.obstacles[it].polygon.points[0].x<<" y: "<<considered_centroid.obstacles[it].polygon.points[0].y<<std::endl;
+
+  it++;
+// adding the most violated per each polygon
+
+   float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
+
+   int largest_index = 0;
+
+      
+    //for (const auto &result : result_pose_stored_)
+
+      for (size_t row = 0; row < result_pose_stored_.size(); row++)
+      {
+        if(result_pose_stored_[row][0] > largest)
+        {
+          largest = result_pose_stored_[row][0];
+          largest_index = row;
+        }
+      }
+    
+      // find the largest value 
+      /*
+      if (result > largest)
+      {
+        largest = result;
+        largest_index = index; // keep track of the index
+      }
+      index++; */
+    
+
+    if(!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
+    {
+
+      A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+      b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
+
+    }
+
+   // checkConstraint(robot_pose_,A_obst_matrix_,b_vect_,A_most_violated_matrix_,b_most_violated_vect_);
+  
+
+  }
+
+   
+
+  // test
+
+  // m_vect_.clear();
+  // b_vect_.clear();
+   
+
+  //size_t num_rows = line_eq_vect_.size();
+
+
+// Initialize A_obst with the correct size
+// A_obst_matrix_(line_eq_vect_.size(), std::vector<float>(2));
+
+
+  // create slope (m) and intercept (b) vectors 
+/*
+  for (int i=0; i<line_eq_vect_.size(); i++)
+  {
+   // for (int j=0;j<line_eq_vect_[0].size();j++)
+
+     m_vect_[i].resize(1); // Resize each row vector of m_vect_ to contain 1 element
+     b_vect_[i].resize(1); //
+    
+     m_vect_[i][0] = line_eq_vect_[i][0];
+     b_vect_[i][0] = line_eq_vect_[i][1]; 
+    
+  }*/
+
+/*
+   // Assign m_vect_ to the first column of A_obst
+    for (size_t i = 0; i < m_vect_.size(); ++i) 
+
+    {
+        A_obst[i][0] = m_vect_[i][0];
+        A_obst[i][1] = 1; // populate 1s in second col
+    }
+
+    std::cout<<std::endl;
+
+
+
+   std::cout<<std::endl;*/
+
+
+ std::cout<<"A_obst_matrix"<<std::endl;
+
+
+      for (const auto& row : A_obst_matrix_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      std::cout<<"b_vect"<<std::endl;
+
+
+      for (const auto& row : b_vect_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+    //  std::cout<<"Pose x"<<robot_pose_.pose.position.x<<std::endl;
+    //  std::cout<<"Pose y"<<robot_pose_.pose.position.y<<std::endl;
+
+      
+      std::cout<<"A_violated_matrix"<<std::endl;
+
+
+      for (const auto& row : A_violated_matrix_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      std::cout<<"b_violated_vect"<<std::endl;
+
+
+      for (const auto& row : b_violated_vect_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+
+           
+      std::cout<<"A_most_violated_matrix"<<std::endl;
+
+
+      for (const auto& row : A_most_violated_matrix_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+      std::cout<<"b_most_violated_vect"<<std::endl;
+
+
+      for (const auto& row : b_most_violated_vect_) {
+        for (const auto& val : row) {
+          std::cout << val << " ";
+        }
+        std::cout << std::endl;
+      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+///// convex hull computation
   costmap_converter_polygons_->convexHullWrapper(point_vect_rotated_, convex_hull);
 
 
@@ -227,13 +486,180 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
 
 
 
-  publishAsMarker("map",convex_hull_array);
+  //publishAsMarker("map",convex_hull_array);
+
+  publishAsMarker("map",considered_polygons);
 
 
   
 }
 
 
+costmap_converter_msgs::msg::ObstacleArrayMsg GoalPose::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+{
+
+  costmap_converter_msgs::msg::ObstacleArrayMsg centroid;
+
+  // Clear centroid.obstacles at the beginning of the function
+  centroid.obstacles.clear();
+
+
+  // NB! obstacles msg accounts in .polygon.points.size() the last vertex as the first (duplicates)
+  // instead of having 3 vertices it returns 4 vertices where the last one is identical to the first one
+  for (const auto &obstacle:obstacles.obstacles)
+  {
+    double sum_x = 0;
+    double sum_y = 0;
+
+    int total_vertices = obstacle.polygon.points.size()-1;
+
+
+    for (auto it = obstacle.polygon.points.begin(); it != std::prev(obstacle.polygon.points.end()); ++it)
+    {
+      const auto &point = *it;
+
+      sum_x += point.x;
+      sum_y += point.y;
+
+    }
+    
+
+/*
+    for (const auto &point:obstacle.polygon.points)
+    {
+
+     sum_x += point.x;
+     sum_y += point.y;
+
+
+    }*/
+
+
+    geometry_msgs::msg::Point32 centroid_point;
+    costmap_converter_msgs::msg::ObstacleMsg centroid_of_obstacle;
+
+    centroid_point.x = sum_x/total_vertices;
+    centroid_point.y = sum_y/total_vertices;
+
+    std::cout<<"Centroid point x "<<centroid_point.x<<std::endl;
+
+
+    
+
+    centroid_of_obstacle.header = obstacle.header; 
+    centroid_of_obstacle.id = obstacle.id;
+
+    centroid_of_obstacle.polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
+
+    centroid.obstacles.push_back(centroid_of_obstacle); // Add the centroid of obstacle to the centroid obstacle array
+
+
+
+  }
+
+
+
+
+ 
+
+  return centroid;
+}
+
+void GoalPose::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
+const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
+{
+
+  double thresh = 1.0;
+
+  int index=0;
+
+ // obstacles.obstacles[index].polygon.points.clear();
+
+  // Iterate over each polygon in polygon_centroids.obstacles
+  for (const auto &obstacle:polygon_centroids.obstacles)
+  {
+
+
+
+
+    // get euclidean distance between current polygon's centroid and robot's pose
+    double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
+
+    // if the distance is below a threshold "thresh" then consider it and store it in a vector
+    if (distance < thresh)
+    {
+       // obstacles.obstacles[index].polygon.points.clear();
+
+/*      geometry_msgs::msg::Point32 centroid_point;
+
+      
+      for (auto it = obstacles.obstacles[index].polygon.points.begin(); it != std::prev(obstacles.obstacles[index].polygon.points.end()); ++it)
+      {    
+        // store in considered_polygon the obstacle to which the computed centroid refers to
+      //considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+
+        auto &point = *it;
+
+        centroid_point = point;
+
+        obstacles.obstacles[index].polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
+
+
+      }*/
+
+
+
+      //  considered_polygons.obstacles.push_back(obstacles.obstacles[index]); // Add the centroid of obstacle to the centroid obstacle array
+
+
+
+
+            // save also as another array the centroids ( so that for example considered_polygon[1] and centroid_vect[1] will be for the same polygon)
+            //centroid_vect.obstacles.push_back(obstacle.obstacles[index])
+
+            considered_centroid.obstacles.push_back(obstacle);
+
+            considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+
+
+            //considered_polygons.obstacles[1] = centroid_vect.obstacles[1]
+
+
+      }
+
+    index++;
+
+    }
+
+  
+
+  // Return the vector container with considered polygons below the threshold
+  std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
+//  std::cout<<"Number of vertiecs of first polygon:"<<considered_polygons.obstacles[0].polygon.points.size()<<std::endl;
+ 
+if (obstacles.obstacles.size() != 0)
+  {
+
+ //   std::cout<<"Total vertices not considered: "<< obstacles.obstacles[0].polygon.points.size()<<std::endl;
+}
+
+  if (considered_polygons.obstacles.size() != 0)
+  {
+
+    std::cout<<"Total vertices: "<< considered_polygons.obstacles[0].polygon.points.size()<<std::endl;
+
+    int index =0 ;
+    for (const auto& vertex : considered_polygons.obstacles[0].polygon.points)
+    {
+      
+    //  std::cout<<"Vertex "<< index<<std::endl;
+    //  std::cout<< "x = "<<vertex.x<<std::endl;
+    //  std::cout<< "y = "<<vertex.y<<std::endl;
+      index++;
+    }
+  }
+  
+}
 
 void GoalPose::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
@@ -288,7 +714,185 @@ void GoalPose::publishAsMarker(const std::string &frame_id,const costmap_convert
 //
     marker_pub_->publish(line_list);
 
+}
+
+//NB! consider the footprint of the robot not the origin when checking if constraints violates ( need to add +0.35 and -0.35 on both size for the x and +0.25 and -0.25 on the y)
+void GoalPose::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
+{
+
+  float slope,intercept;
+  std::vector<float> rowVector;
+  geometry_msgs::msg::Point32 point1 = p1;
+  geometry_msgs::msg::Point32 point2 = p2;
+    geometry_msgs::msg::Point32 centroid_point = p3_centroid;
+
+
+  // do rotations from RH rule frame to Cartesian frame of each point
+/*
+  // if point1 is in 1st quadrant in RH frame
+  if (point1.x > 0 && point1.y < 0)
+  {
+    // rotate it to be in 4th (90 deg rotation clockwise to align with cartesian frame)
+    //point1.x = point1.x * -1;
+    first = true;
   }
+  // 2nd quadrant
+  else if (point1.x > 0 && point1.y > 0)
+  {
+    //point1.y = point1.y * -1;
+  }
+  // 3rd quadrant
+  else if (point1.x < 0 && point1.y > 0 )
+  {
+    //point1.x = point1.x * -1;
+  }
+  // 4th qudrant
+  else if (point1.x < 0 && point1.y < 0)
+  {
+    //point1.y = point1.y * -1;
+  }
+
+
+  if (point2.x > 0 && point2.y < 0)
+  {
+    // rotate it to be in 4th (90 deg rotation clockwise to align with cartesian frame)
+    //point2.x = point2.x * -1;
+  }
+  // 2nd quadrant
+  else if (point2.x > 0 && point2.y > 0)
+  {
+    //point2.y = point2.y * -1;
+  }
+  // 3rd quadrant
+  else if (point2.x < 0 && point2.y > 0 )
+  {
+    //point2.x = point2.x * -1;
+
+
+  }
+  // 4th qudrant
+  else if (point2.x < 0 && point2.y < 0)
+  {
+    //point2.y = point2.y * -1;
+   // fourth == true;
+  }*/
+
+
+  // calculate slope "m"
+
+  slope = (point2.y - point1.y)/(point2.x - point1.x);
+  //std::cout<<"Slope: "<<slope<<std::endl;
+
+
+  // if the slope is -inf or inf we have horizontal line
+  if (slope == std::numeric_limits<float>::infinity() || slope == -std::numeric_limits<float>::infinity())
+  {
+    slope = 1; // before slope had inverted sign
+    intercept = -point1.x; //before intercept had the original non-inverted value of x
+    rowVector = {slope, 0};
+  }
+  else if (slope == 0) // vertical line
+  {
+    intercept = point1.y;
+    rowVector = {slope, 1};
+
+  }
+  else // general case
+  {
+   intercept = point1.y - slope * point1.x;
+   rowVector = {-slope, 1};
+
+  }
+
+  A_matrix.push_back(rowVector);
+  b_vect.push_back({intercept});
+
+
+  /// check constraint function fusion
+
+  int largest_column_index = 0;
+  std::vector<float> rowVector2;
+  float b,b2;
+  //std::vector<std::vector<float>> result_vect;
+
+  // make them private members for now later pass them by out param!!! NB!!!!!!!!!!!!!!!!///////////////////////////////////////
+ // std::vector<std::vector<float>> A_violated_matrix,b_violated_vect;
+
+  //float smallest = std::numeric_limits<float>::max();
+  if (!A_matrix.empty() && !b_vect.empty())
+  {
+
+    bool horizontal_violation = false;
+
+      // access last row of A_matrix with [A_matrix.size()-1] and b_vector
+    float result_pose = (A_matrix[A_matrix.size()-1][0] * pose.pose.position.x + A_matrix[A_matrix.size()-1][1] * pose.pose.position.y) - b_vect[b_vect.size()-1][0];
+    float result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
+
+    if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
+    {
+      if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
+      {
+        horizontal_violation=true;
+      }
+    }
+    if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0  || horizontal_violation == true) // if their signs are different, then the current constraint is violated by the robot
+                                                                                  // if their product is 0 it means that the centroid lies on the line (2 points line)
+    {
+
+       // rowVector2 = {A_matrix[row][0],A_matrix[row][1]};
+       // b = b_vect[row][0];
+       // A_violated_matrix.push_back(rowVector2); // will store slope of violated constraints
+       // b_violated_vect.push_back({b}); // will store intercepts of violated constraints 
+
+      A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
+      b_violated_vect_.push_back({b_vect[b_vect.size()-1][0]});
+      result_pose_stored_.push_back({result_pose,0});
+       // std::cout<<"Violated constraint "<<index<<" value"<<result<<std::endl;
+      }
+
+    }
+
+      //index ++;
+   //   horizontal_violation = false;
+
+/////// CODE for calculating the most violated constraint and saving it in A and b matrix /////////////
+    //int index = 0;
+    /*
+    int largest_index = 0;
+
+      
+    //for (const auto &result : result_pose_stored_)
+
+      for (size_t row = 0; row < result_pose_stored_.size(); row++)
+      {
+        if(result_pose_stored_[row][0] > largest)
+        {
+          largest = result_pose_stored_[row][0];
+          largest_index = row;
+        }
+      }
+    
+      // find the largest value 
+      /*
+      if (result > largest)
+      {
+        largest = result;
+        largest_index = index; // keep track of the index
+      }
+      index++; 
+    
+
+    if(!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
+    {
+
+      A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+      b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
+
+    }
+
+*/
+ 
+}
 
 
   void GoalPose::subscriber_callback(const geometry_msgs::msg::PointStamped clicked_point) const 
@@ -321,6 +925,25 @@ void GoalPose::publishAsMarker(const std::string &frame_id,const costmap_convert
     footprint_ = footprint;
 
   }
+
+
+void GoalPose::pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose) 
+{
+
+
+  robot_pose_.pose.position.x = amcl_pose.pose.pose.position.x;
+  robot_pose_.pose.position.y = amcl_pose.pose.pose.position.y;
+}
+
+void GoalPose::obstacles_sub_callback(const costmap_converter_msgs::msg::ObstacleArrayMsg msg )
+{
+  std::cout<<"Receiving"<<std::endl;
+  obstacles = msg;
+  std::cout<<obstacles.obstacles[0].polygon.points[0].x;
+
+
+}
+
 
 
 /*******************************************************************************

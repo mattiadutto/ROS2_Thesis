@@ -21,6 +21,9 @@ find_package(nav2_core REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(costmap_converter REQUIRED)
+find_package(costmap_converter_msgs REQUIRED)
+
+
 
 ################################################################################
 # Build
@@ -46,6 +49,7 @@ set(dependencies
   "nav2_util"
   "nav2_core"
   "costmap_converter"
+  "costmap_converter_msgs"
   
 )
 
