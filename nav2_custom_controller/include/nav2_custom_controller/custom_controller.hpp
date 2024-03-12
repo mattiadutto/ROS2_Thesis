@@ -106,9 +106,11 @@ class CustomController : public nav2_core::Controller
 
     void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
-    void checkConstraint(const geometry_msgs::msg::PoseStamped  &pose,const std::vector<std::vector<float>> &A_obst_matrix,const std::vector<std::vector<float>> &b_vect,std::vector<std::vector<float>> &A_most_violated_matrix,std::vector<std::vector<float>> &b_most_violated_vect);
-
     bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
+    void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
+    void compute_most_violated_constraints();
+
+
 
     
 
@@ -198,6 +200,8 @@ class CustomController : public nav2_core::Controller
   std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
   std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
   std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
+
+  std::vector<geometry_msgs::msg::Point32> robot_footprint_;
 
 
 
