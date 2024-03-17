@@ -64,8 +64,8 @@ template <typename Iter, typename Getter>
 
     robot_footprint_.resize(4);
 
-    robot_footprint_[0].x = 0.314;
-    robot_footprint_[0].y = 0.263;
+    robot_footprint_[0].x = 0.314; 
+    robot_footprint_[0].y = 0.263; 
     robot_footprint_[1].x = 0.314;
     robot_footprint_[1].y = -0.263;
     robot_footprint_[2].x = -0.314;
@@ -153,6 +153,8 @@ template <typename Iter, typename Getter>
 
     marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
 
+    marker_pub_cnvx_reg_ = node ->create_publisher<visualization_msgs::msg::Marker>("convex_region_marker",10);
+
     tf_pub_ = node->create_publisher<geometry_msgs::msg::TransformStamped>("tf_pub",10);
 
     // Create a lifecycle wall timer with a callback function
@@ -164,47 +166,57 @@ template <typename Iter, typename Getter>
 
     // costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
 
-     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 
      //create grid of points 
 
-  point_vect_.reserve(1000);
-  point_vect_rotated_.reserve(1000);
+    point_vect_.reserve(1000);
+    point_vect_rotated_.reserve(1000);
 
 
-  point_vect_.clear();
-  point_vect_rotated_.clear();
+    point_vect_.clear();
+    point_vect_rotated_.clear();
 
-  double minX = -1;
-  double maxX = 1;
-  double minY = -1;
-  double maxY = 1;
-  double resolution = 0.02;
+    double minX = -1;
+    double maxX = 1;
+    double minY = -1;
+    double maxY = 1;
+    double resolution = 0.1;
 
 
 
-  for (double x = minX; x <= maxX; x += resolution)
-  {
-
-    for (double y = minY; y <= maxY; y += resolution)
+    for (double x = minX; x <= maxX; x += resolution)
     {
 
-      costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
+      for (double y = minY; y <= maxY; y += resolution)
+      {
 
-      point.x = x;
-      point.y = y;
-      point_vect_.push_back(point);
+        costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
 
+        point.x = x;
+        point.y = y;
+        point_vect_.push_back(point);
+
+      }
     }
-  }
-
-  
-
 
   }
 
 void CustomController::timer_callback()
 {
+
+  try
+  { 
+
+   received_tf_ = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
+
+  } catch (tf2::LookupException &ex)
+  {
+
+    RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
+  }
+
+  tf_pub_->publish(received_tf_);
 
   point_vect_rotated_.clear();
 
@@ -234,6 +246,36 @@ void CustomController::timer_callback()
 
   }
 
+  robot_footprint_rotated_.clear();
+
+  for (const auto& footprint_point : robot_footprint_)
+  {
+
+    double roll, pitch, yaw;
+    tf2::Quaternion quat;
+    tf2::fromMsg(received_tf_.transform.rotation, quat);
+    tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+
+    geometry_msgs::msg::Point32 transformed_point;
+
+     // Rotate the point around the Z-axis
+    double cos_theta = cos(yaw);
+    double sin_theta = sin(yaw);
+
+    transformed_point.x = cos_theta * footprint_point.x - sin_theta * footprint_point.y;
+    transformed_point.y = sin_theta * footprint_point.x + cos_theta * footprint_point.y;
+
+    // Translate the point
+    transformed_point.x += received_tf_.transform.translation.x;
+    transformed_point.y += received_tf_.transform.translation.y;
+
+    robot_footprint_rotated_.push_back(transformed_point);
+
+
+
+
+  }
+
   /// get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
   costmap_converter::ObstacleArrayConstPtr obstacles_ptr = costmap_converter_->getObstacles();
 
@@ -241,20 +283,7 @@ void CustomController::timer_callback()
 
 
 
- // geometry_msgs::msg::TransformStamped received_tf_;
 
-  try
-  { 
-
-   received_tf_ = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
-
-  } catch (tf2::LookupException &ex)
-  {
-
-    RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
-  }
-
-  tf_pub_->publish(received_tf_);
 
 
   // get the global frame 
@@ -293,7 +322,7 @@ void CustomController::timer_callback()
     {
 
       calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(robot_footprint_rotated_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
 
     }
 
@@ -306,10 +335,10 @@ void CustomController::timer_callback()
       auto last_point = obstacle.polygon.points.end();  
       auto prev_point = std::prev(last_point, 2);  
       calcLineEquation(*prev_point,obstacle.polygon.points.front(),robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(robot_footprint_rotated_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
-    std::cout<<"Centroid x: "<<considered_centroid.obstacles[it].polygon.points[0].x<<" y: "<<considered_centroid.obstacles[it].polygon.points[0].y<<std::endl;
+   // std::cout<<"Centroid x: "<<considered_centroid.obstacles[it].polygon.points[0].x<<" y: "<<considered_centroid.obstacles[it].polygon.points[0].y<<std::endl;
 
     it++;
   
@@ -359,7 +388,7 @@ void CustomController::timer_callback()
 
 
   // printing
-
+/*
   std::cout<<"A_obst_matrix"<<std::endl;
 
 
@@ -379,9 +408,9 @@ void CustomController::timer_callback()
     }
     std::cout << std::endl;
   }
+*/
 
-
-
+/*
   std::cout<<"A_violated_matrix"<<std::endl;
 
 
@@ -402,7 +431,7 @@ void CustomController::timer_callback()
     std::cout << std::endl;
   }
 
-
+*/
 
   std::cout<<"A_most_violated_matrix"<<std::endl;
 
@@ -423,14 +452,15 @@ void CustomController::timer_callback()
     }
     std::cout << std::endl;
   }
+  
 
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
 
-  //publishAsMarker(frame_id_, *obstacles);
+  publishAsMarker(frame_id_, obstacles,false);
 
-   // publishAsMarker(frame_id_,considered_polygons);
+  //publishAsMarker(frame_id_,considered_polygons,false);
 
-  publishAsMarker(frame_id_,convex_hull_array);
+  publishAsMarker(frame_id_,convex_hull_array,true);
 
 
 }
@@ -453,14 +483,16 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
     if(A_matrix[row][0] == 1) // the equation for the horizontal line is flipped (equation describing line below robot is actually above)
                               // in order to get the right representation the intercept's sign should be flipped
     {
-      b_vect[row][0] = b_vect[row][0]*-1; 
+      b_vect[row][0] = b_vect[row][0]*-1; // positive intercept is top half-plane, negative is bottom half-plane
     }
 
     float result = (A_matrix[row][0] * point.x + A_matrix[row][1] * point.y) - b_vect[row][0];
 
+   // std::cout<<"Result:"<<result<<std::endl;
 
 
-    if (b_vect[row][0] < 0 ) // if intercept is negative
+
+    if (b_vect[row][0] < 0 ) // if intercept is negative, bottom half plane of origin
     {
       if (result > 0 ) // point satisfy the constraint 
         // && A_matrix[row][0] != 1
@@ -468,9 +500,15 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
         count++;
       }
     }
-    else if (b_vect[row][0] > 0) //if intercept is positive
-    {
-      if (result < 0) // point satisfy the constraint
+    else if (b_vect[row][0] > 0) //if intercept is positive, top half plane of origin
+    { 
+      // better to consider the footprint x location not robot's origin x location
+      if (result < 0 && b_vect[row][0] > robot_pose_.pose.position.x) // point satisfy the constraint, but for lines above robot
+      {
+        count++;
+
+      }
+      else if (result > 0 && b_vect[row][0] < robot_pose_.pose.position.x) // points satisfy constraint for lines below the robot
       {
         count++;
       }
@@ -726,6 +764,7 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   }
   else // general case
   {
+
    intercept = point1.y - slope * point1.x;
    rowVector = {-slope, 1};
 
@@ -746,6 +785,37 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
   geometry_msgs::msg::Point32 centroid_point = p_centroid;
   std::vector<geometry_msgs::msg::Point32> robot_footprint = robot_footprint_;
 
+  // for everything that is above origin violated constraints are under the line, but if the robot 
+  // is at ++ coordinate and the obstacle is at ++ coordinate (2nd quadrant) and its on the left side of the robot
+  // considering the robot is heading to the left parallel to the y axis then this obstacle constraint will cut the region 
+  // below the line, leaving the robot footprint outside of the convex region
+
+
+// for horizontal constraints being above the origin or below the origin 2 cases
+
+  // so if robot is in 2nd quadrant and the robot pose is above the constraint of the obstacle consider in the convex region 
+  // the lines that satisfy the constraint from that line above it 
+
+  // if the pose is below the constraint line, consider the convex region points that satisfy below that line
+
+  // for robot in 1st quadrant (+-) obstacle constraint line if its below the pose of the robot consider the region that satify
+  // from the line above it, for vertical lines left of the pose need to consider the region to the right of the line
+
+
+// for vertical constraints being left of origin and right of origin 2 cases
+
+  // if the robot is in 2nd quadrant again (++) then vertical lines constraints that are to the right of the pose need to consider
+  // convex region points that satisfy to the left of that line not to the right of it 
+
+
+
+  // for general case ????
+
+  // also consider the case when obstacle violates one of the footprint points by small ammount, therefore the whole constraint of the obstacle
+  // is treated as non-violated and since the grid is not constrained by this line (the line is not in violated matrix), therefore the convex region
+  // includes the entire obstacle which is wrong 
+
+
   if (!A_matrix.empty() && !b_vect.empty())
   {
 
@@ -761,7 +831,8 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
         {
           horizontal_violation=true;
         }
-      }
+      } 
+
       if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0  || horizontal_violation == true) // if their signs are different, then the current constraint is violated by the robot
                                                                                                                     // if their product is 0 it means that the centroid lies on the line (2 points line)
       {
@@ -771,6 +842,8 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
       }
 
     }
+
+    //std::cout<<"count of violated"<<count<<std::endl;
 
     if (count == 4) // the robot's footprint violates the current constraint
     {
@@ -815,7 +888,7 @@ void CustomController::compute_most_violated_constraints()
 }
 
 
-void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles, bool print_convex_region)
 {
   visualization_msgs::msg::Marker line_list; // creater line_list as Marker msg
   line_list.header.frame_id = frame_id;
@@ -827,8 +900,20 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
   line_list.type = visualization_msgs::msg::Marker::LINE_LIST; //line list type 
 
   line_list.scale.x = 0.02;
-  line_list.color.g = 1.0;
-  line_list.color.a = 1.0;
+
+  if (print_convex_region == false)
+  {
+
+    line_list.color.g = 1.0;
+    line_list.color.a = 1.0;
+    line_list.color.b = 1.0;
+
+  }else
+
+  {
+    line_list.color.g = 1.0;
+    line_list.color.a = 1.0;
+  }
 
   for (const auto &obstacle : obstacles.obstacles) // iterate over each element in obstacles.obstacles over each polygon
       {
@@ -843,7 +928,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
         line_end.x = obstacle.polygon.points[j + 1].x; // this creates a line_end point that is j+1
         line_end.y = obstacle.polygon.points[j + 1].y;
         line_list.points.push_back(line_end); //every subsequent point will represent a line
-      }// close loop for current polygon
+       }// close loop for current polygon
       
       // After iterating through all vertices of the polygon, the loop checks if the polygon is closed (i.e., if it has more than two vertices).
       if (!obstacle.polygon.points.empty() && obstacle.polygon.points.size() != 2) // if true -> polygon is closed
@@ -862,10 +947,20 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
         }
       }
     }
-      /// NB! from line_list.points points of a line can be taken so that equation of line can be formed
-      /// NB! from line_list.points points of a vertices of the obstacle can be taken so that equation of line can be formed
-//
+
+    // publish on 2 different topic depending on the passed parameter
+     if (print_convex_region == false)
+     {
+
       marker_pub_->publish(line_list);
+
+    }else
+    {
+      marker_pub_cnvx_reg_ ->publish(line_list);
+    }
+
+      // else 
+      // marker_pub_cnvx_reg_ -> publish(line_list)
 }
 
 

@@ -94,7 +94,7 @@ class CustomController : public nav2_core::Controller
 
     void timer_callback();
 
-    void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
+    void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,bool print_convex_region);
 
 
     costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
@@ -161,6 +161,7 @@ class CustomController : public nav2_core::Controller
 
 
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
 
     //costmap_converter::CostmapToPolygonsDBSMCCH test_;
 
@@ -202,6 +203,7 @@ class CustomController : public nav2_core::Controller
   std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
 
   std::vector<geometry_msgs::msg::Point32> robot_footprint_;
+  std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
 
 
 
