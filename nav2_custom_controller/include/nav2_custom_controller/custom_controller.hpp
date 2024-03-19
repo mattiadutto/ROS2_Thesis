@@ -205,6 +205,11 @@ class CustomController : public nav2_core::Controller
   std::vector<geometry_msgs::msg::Point32> robot_footprint_;
   std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
 
+    costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
+   std::vector<geometry_msgs::msg::Point32> stored_centroid_point_;
+      std::vector<geometry_msgs::msg::Point32> final_stored_centroid_point_;
+
+
 
 
 

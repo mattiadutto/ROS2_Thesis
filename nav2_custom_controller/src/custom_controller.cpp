@@ -292,7 +292,7 @@ void CustomController::timer_callback()
   // instantiate considered_polygons and considered_centroid
   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons;
 
-  costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
+ // costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
 
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(obstacles);
 
@@ -307,6 +307,8 @@ void CustomController::timer_callback()
   b_most_violated_vect_.clear();
   A_obst_matrix_.clear();
   b_vect_.clear();
+  considered_centroid.obstacles.clear();
+  stored_centroid_point_.clear();
   int it=0;
 
   for (const auto &obstacle : considered_polygons.obstacles)
@@ -478,8 +480,12 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
 
   int count = 0;
 
+  bool t = false;
+
   for (size_t row = 0; row < A_matrix.size();row++)
   {
+              std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
+
     if(A_matrix[row][0] == 1) // the equation for the horizontal line is flipped (equation describing line below robot is actually above)
                               // in order to get the right representation the intercept's sign should be flipped
     {
@@ -488,44 +494,79 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
 
     float result = (A_matrix[row][0] * point.x + A_matrix[row][1] * point.y) - b_vect[row][0];
 
-   // std::cout<<"Result:"<<result<<std::endl;
-
+    //std::cout<<"Result:"<<result<<std::endl;
 
 
     if (b_vect[row][0] < 0 ) // if intercept is negative, bottom half plane of origin
     {
-      if (result > 0 ) // point satisfy the constraint 
-        // && A_matrix[row][0] != 1
+    //  return true;
+      if (result < 0 )  // it needs to get the info of the most violated constraint the x positions of the points of that line !!!
       {
         count++;
+      //  return true;
+      }
+      else if (result > 0 )
+      {
+        count++;
+     //   return true;
+
       }
     }
     else if (b_vect[row][0] > 0) //if intercept is positive, top half plane of origin
     { 
-      // better to consider the footprint x location not robot's origin x location
-      if (result < 0 && b_vect[row][0] > robot_pose_.pose.position.x) // point satisfy the constraint, but for lines above robot
-      {
-        count++;
+      
 
+      // the main problem is wrong centroid coordinates!! fix that
+
+      // better to consider the footprint x location not robot's origin x location
+      if (result < 0 && final_stored_centroid_point_[row].x > robot_pose_.pose.position.x) // point satisfy the constraint, but for lines above robot
+      {
+     //   return false;
+        count++;
+      //  std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
+
+   //     return false; 
+        t = true;
+//
       }
-      else if (result > 0 && b_vect[row][0] < robot_pose_.pose.position.x) // points satisfy constraint for lines below the robot
+
+      // this one works
+      else if (result < 0 && final_stored_centroid_point_[row].x < robot_pose_.pose.position.x) // points satisfy constraint for lines below the robot
       {
         count++;
+    //            std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
+
+        t = true;
+      //  return false;
       }
 
 
     }
 
+
+  }
+
+
+
+  if (t==true)
+  {
+    return false;
+  }
+  else
+  {
+    return true;
   }
 
   if (count == num_constraints) // all constraints are satisfied, therefore point satisfy 
   {
-    return false; // return that point does not violate the constraints
+  //  return false; // return that point does not violate the constraints
   }
   else
   {
-    return true; // if at least one constraint is violated, the point does not satisfy
+ //   return true; // if at least one constraint is violated, the point does not satisfy
   }
+
+  
   
 
 }
@@ -640,7 +681,7 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
 const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
 {
 
-  double thresh = 1.0;
+  double thresh = 1.5;
 
   int index=0;
 
@@ -850,6 +891,7 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
       A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
       b_violated_vect_.push_back({b_vect[b_vect.size()-1][0]});
       result_pose_stored_.push_back({result_pose,0});
+      stored_centroid_point_.push_back({centroid_point});
     }
   }
 }
@@ -882,6 +924,9 @@ void CustomController::compute_most_violated_constraints()
     A_violated_matrix_.clear();
     b_violated_vect_.clear();
     result_pose_stored_.clear();
+
+    final_stored_centroid_point_.push_back(stored_centroid_point_[stored_centroid_point_.size()-1]);
+    stored_centroid_point_.clear();
 
   }
 
