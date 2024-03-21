@@ -1,3 +1,0 @@
-[submodule "ugv_sdk"]
-	path = ugv_sdk
-	url = https://github.com/westonrobot/ugv_sdk.git
