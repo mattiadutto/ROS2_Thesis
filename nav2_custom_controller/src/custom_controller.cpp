@@ -360,6 +360,17 @@ void CustomController::timer_callback()
       point_vect_constrained_.push_back(point);
     }
   }
+  int num = 0;
+
+  for (const auto &point : stored_centroid_point_)
+  {
+        std::cout<<"Centroid numb: "<<num<<std::endl;
+
+    std::cout<<"Centroid X coord: "<<point.x<<std::endl;
+    std::cout<<"Centroid Y coord: "<<point.y<<std::endl;
+    num++;
+
+  }
 
 
   // compute convex hull
@@ -484,7 +495,7 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
 
   for (size_t row = 0; row < A_matrix.size();row++)
   {
-              std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
+   //           std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
 
     if(A_matrix[row][0] == 1) // the equation for the horizontal line is flipped (equation describing line below robot is actually above)
                               // in order to get the right representation the intercept's sign should be flipped
@@ -617,6 +628,8 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
     centroid_point.x = sum_x/total_vertices;
     centroid_point.y = sum_y/total_vertices;
+
+    std::cout<<"centroid x: "<<centroid_point.x<<std::endl;
 
 
     
@@ -926,7 +939,7 @@ void CustomController::compute_most_violated_constraints()
     result_pose_stored_.clear();
 
     final_stored_centroid_point_.push_back(stored_centroid_point_[stored_centroid_point_.size()-1]);
-    stored_centroid_point_.clear();
+    //stored_centroid_point_.clear();
 
   }
 
