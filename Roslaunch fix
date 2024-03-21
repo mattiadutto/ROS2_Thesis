@@ -1,0 +1,5 @@
+How to deal with roslaunch not working turtlebot3
+
+in terminator type top command
+look for the id of gzserver
+then type: kill -9 <id of the gzserver>
