@@ -64,14 +64,14 @@ template <typename Iter, typename Getter>
 
     robot_footprint_.resize(4);
 
-    robot_footprint_[0].x = 0.314; 
-    robot_footprint_[0].y = 0.263; 
-    robot_footprint_[1].x = 0.314;
-    robot_footprint_[1].y = -0.263;
-    robot_footprint_[2].x = -0.314;
-    robot_footprint_[2].y = 0.263;
-    robot_footprint_[3].x = -0.314;
-    robot_footprint_[3].y = -0.263;
+    robot_footprint_[0].x = 0.4; 
+    robot_footprint_[0].y = 0.3; 
+    robot_footprint_[1].x = 0.4;
+    robot_footprint_[1].y = -0.3;
+    robot_footprint_[2].x = -0.4;
+    robot_footprint_[2].y = 0.3;
+    robot_footprint_[3].x = -0.4;
+    robot_footprint_[3].y = -0.3;
 
     
 
@@ -314,7 +314,6 @@ void CustomController::timer_callback()
     for (int j = 0; j < (int)obstacle.polygon.points.size() - 2; ++j)
     {
 
-
       calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
       compute_violated_constraints(robot_footprint_rotated_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
@@ -323,7 +322,6 @@ void CustomController::timer_callback()
       // vector is not empty and if the vector size is not 2 (otherwise the for loop between 2 points will be enough)
     if (!obstacle.polygon.points.empty() && obstacle.polygon.points.size() != 2)
     {
-
 
       // calculate the equation of the line between last point and first point of the polygon
       auto last_point = obstacle.polygon.points.end();  
@@ -339,6 +337,7 @@ void CustomController::timer_callback()
 
   // consider only the points of the grid that are inside the region defined by the most violated constraints
   point_vect_constrained_.clear();
+  point_vect_non_constrained_.clear();
 
   for (const auto& point : point_vect_rotated_)
   {
@@ -346,6 +345,10 @@ void CustomController::timer_callback()
     if (isViolated(point,A_most_violated_matrix_,b_most_violated_vect_) == false)
     {
       point_vect_constrained_.push_back(point);
+    }
+    else 
+    {
+      point_vect_non_constrained_.push_back(point);
     }
   }
 
@@ -357,9 +360,38 @@ void CustomController::timer_callback()
 
   //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
 
-  Polygon polygon(point_vect_constrained_);
+//  bool invert = false;
 
-  auto convexHull = polygon.ComputeConvexHull();
+// for (const auto& point : point_vect_constrained_)
+ //{
+  //if (point.x == 0.3 && point.y == 0.2)
+ // {
+  //  invert = false;
+  //}
+  //else
+ // {
+  //  invert = true;
+ // }
+// }
+
+ std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> convexHull;
+
+// std::cout<<"invert: "<<invert<<std::endl;
+
+//if (invert == false)
+//{
+    Polygon polygon(point_vect_constrained_);
+    convexHull = polygon.ComputeConvexHull();
+
+
+//}
+//else if (invert == true)
+//{
+  //  Polygon polygon(point_vect_non_constrained_);
+   // convexHull = polygon.ComputeConvexHull();
+
+//}
+
 
 
   costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
@@ -381,6 +413,27 @@ void CustomController::timer_callback()
   convex_hull_array.obstacles[0] = obstacle_msg;
 
   // printing
+
+
+  std::cout<<"A_matrix"<<std::endl;
+
+
+  for (const auto& row : A_obst_matrix_) {
+    for (const auto& val : row) {
+      std::cout << val << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  std::cout<<"b_vector"<<std::endl;
+
+
+  for (const auto& row : b_vect_) {
+    for (const auto& val : row) {
+      std::cout << val << " ";
+    }
+    std::cout << std::endl;
+  }
 
   std::cout<<"A_most_violated_matrix"<<std::endl;
 
@@ -427,10 +480,11 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
 
   int count = 0;
 
-  bool t = false;
 
   for (size_t row = 0; row < A_matrix.size();row++)
   {
+      bool horizontal = false;
+
    // std::cout<<"row: "<<row<<std::endl;
    //           std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
 
@@ -438,62 +492,23 @@ bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSM
                               // in order to get the right representation the intercept's sign should be flipped
     {
       b_vect[row][0] = b_vect[row][0]*-1; // positive intercept is top half-plane, negative is bottom half-plane
+      horizontal = true;
     }
 
     float result = (A_matrix[row][0] * point.x + A_matrix[row][1] * point.y) - b_vect[row][0];
+    float result_origin = (A_matrix[row][0] * robot_pose_.pose.position.x + A_matrix[row][1] * robot_pose_.pose.position.y) - b_vect[row][0];
 
-    //std::cout<<"Result:"<<result<<std::endl;
-
-/*
-    if (b_vect[row][0] < 0 ) // if intercept is negative, bottom half plane of origin
+    if (result * result_origin < 0)
     {
-    //  return true;
-      if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x ) // point satisfy the constraint, but for lines above robot
-      {
-     //   t=true;
-        count++;
-      //  return true;
-      }
-      else if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x) // points satisfy constraint for lines below the robot
-      {
-        count++;
-
-      }
+      // not in the same plane
     }
-    */
+    else if (result * result_origin > 0)
+    {
+      count++;
+    }
 
-   // else if (b_vect[row][0] > 0) //if intercept is positive, top half plane of origin
-    //{ 
 
-      // better to consider the footprint x location not robot's origin x location
-
-    // here was < 0
-      if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x ) // point satisfy the constraint, but for lines above robot
-      {
-       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
-        count++;
-      }
-
-// here was >0
-      else if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x) // points satisfy constraint for lines below the robot
-      {
-
-        count++;
-      }
-
-   // }
   }
-
-
-
- // if (t==true)
- // {
- //   return false;
- // }
- // else
- // {
-  //  return true;
- // }
 
   if (count == num_constraints) // all constraints are satisfied, therefore point satisfy 
   {
@@ -621,7 +636,7 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
 const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
 {
 
-  double thresh = 1.5;
+  double thresh = 1;
 
   int index=0;
 
@@ -765,8 +780,9 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
 void CustomController::compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
 {
 
+  // when I have horizontal line with 2 vertices only it happens that the calculated result_centroid is zero!
+
   int count = 0;
-  float result_pose,result_centroid;
   geometry_msgs::msg::Point32 centroid_point = p_centroid;
   static geometry_msgs::msg::Point32 old_centroid_point;
   old_centroid_point.x = 0;
@@ -774,70 +790,133 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
   std::vector<geometry_msgs::msg::Point32> robot_footprint = robot_footprint_;
 
-  // for everything that is above origin violated constraints are under the line, but if the robot 
-  // is at ++ coordinate and the obstacle is at ++ coordinate (2nd quadrant) and its on the left side of the robot
-  // considering the robot is heading to the left parallel to the y axis then this obstacle constraint will cut the region 
-  // below the line, leaving the robot footprint outside of the convex region
+  std::vector<float> result_footprint_points_stored;
+  result_footprint_points_stored.clear();
 
-
-// for horizontal constraints being above the origin or below the origin 2 cases
-
-  // so if robot is in 2nd quadrant and the robot pose is above the constraint of the obstacle consider in the convex region 
-  // the lines that satisfy the constraint from that line above it 
-
-  // if the pose is below the constraint line, consider the convex region points that satisfy below that line
-
-  // for robot in 1st quadrant (+-) obstacle constraint line if its below the pose of the robot consider the region that satify
-  // from the line above it, for vertical lines left of the pose need to consider the region to the right of the line
-
-
-// for vertical constraints being left of origin and right of origin 2 cases
-
-  // if the robot is in 2nd quadrant again (++) then vertical lines constraints that are to the right of the pose need to consider
-  // convex region points that satisfy to the left of that line not to the right of it 
-
-
-
-  // for general case ????
-
-  // also consider the case when obstacle violates one of the footprint points by small ammount, therefore the whole constraint of the obstacle
-  // is treated as non-violated and since the grid is not constrained by this line (the line is not in violated matrix), therefore the convex region
-  // includes the entire obstacle which is wrong 
 
   if (!A_matrix.empty() && !b_vect.empty())
   {
 
-    bool horizontal_violation = false;
-
     for (auto &point : robot_footprint)
     {
 
+
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
+      
+      //std::cout<<"result pose: "<<result_pose<<std::endl;
+      //std::cout<<"result centroid: "<<result_centroid<<std::endl;  
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
+        result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
+        result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
 
-        if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
+        std::cout<<"result pose: "<<result_pose<<std::endl;
+        std::cout<<"result centroid: "<<result_centroid<<std::endl;
+
+        // the problem here is when I have 0 of the multiplication I cannot differentiate on which side of the line is the point because it 
+        // will always be zero therefore when I get the zero case I need to perform additional check between 4 of the points if they are the same sign 
+        // therefore they are not cut by the line (line is not crossing the footprint) so I can do count++ !!! NB!!
+
+        if(result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
-          horizontal_violation=true;
+
+          result_footprint_points_stored.push_back({result_pose});
+
+
         }
-      } 
+
+        else if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
+        {
+          //count++;
+          result_footprint_points_stored.push_back({result_pose});
+
+
+        }
+      //  std::cout<<"COUNT: "<<count<<std::endl;
+
+      }
 
       // if their signs are different, then the current constraint is violated by the robot
      // if their product is 0 it means that the centroid lies on the line (2 points line)
-      if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0  || horizontal_violation == true) 
-      {
 
-        count++;
+      // was also || result_pose * result_centroid == 0 before !
+      else
+      {
+        if (result_pose * result_centroid < 0)
+        {
+          //count++;
+          result_footprint_points_stored.push_back({result_pose});
+
+        }
+        else if (result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
+        {
+
+          result_footprint_points_stored.push_back({result_pose});
+
+        }
+
 
       }
 
     }
 
-    //std::cout<<"count of violated"<<count<<std::endl;
+/*
+
+    if (!result_footprint_points_stored.empty())
+    {
+
+          std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3];
+
+
+      if ( (result_footprint_points_stored[0] * result_footprint_points_stored[1] * result_footprint_points_stored[2] * result_footprint_points_stored[3]) > 0)
+      {
+                std::cout<<"been here: "<<std::endl;
+
+        count = 4;
+      }
+
+    } */
+
+    if (!result_footprint_points_stored.empty())
+{
+
+
+
+    std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3];
+
+    // Check if all values have the same sign
+    bool all_positive = true;
+    bool all_negative = true;
+    
+    for (float value : result_footprint_points_stored)
+    {
+        if (value > 0)
+        {
+            all_negative = false;
+        }
+        else if (value < 0)
+        {
+            all_positive = false;
+        }
+    }
+
+    // If all values are either positive or negative, the product will be positive
+    if (all_positive || all_negative)
+    {
+        std::cout << "All values have the same sign" << std::endl;
+        count = 4;
+    }
+}
+
+
+
+    
+    //std::cout<<"COUNT: "<<count<<std::endl;
 
     if (count == 4) // the robot's footprint violates the current constraint
-    {
+    { 
+
 
       A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
       b_violated_vect_.push_back({b_vect[b_vect.size()-1][0]});
@@ -850,23 +929,14 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
         stored_centroid_point_.obstacles.push_back(centroid_of_obstacle);
 
       }
-
-
-
-     // centroid_of_obstacle.polygon.points.push_back(centroid_point); 
-
-
-
-
-      //stored_centroid_point_.push_back({centroid_point});
-     
-     // std::cout<<"Centroid X coord: "<<point.polygon.points[0].x<<std::endl;
     
 
     }
     old_centroid_point = centroid_point;
   }
 }
+
+
 
 void CustomController::compute_most_violated_constraints()
 {
@@ -878,12 +948,15 @@ void CustomController::compute_most_violated_constraints()
   for (size_t row = 0; row < result_pose_stored_.size(); row++)
   {
 
-    if(result_pose_stored_[row][0] > largest)
+    if(result_pose_stored_[row][0] < largest)
     {
       largest = result_pose_stored_[row][0];
       largest_index = row;
     }
+
+
   }
+
 
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
@@ -1242,3 +1315,156 @@ void CustomController::checkConstraint(const geometry_msgs::msg::PoseStamped  &p
 
   }
 }*/
+
+
+/* 28/03 backup
+
+
+// will determine if a point is inside set of constraints
+bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector)
+{
+
+  // perform a loop through A_matrix and check for each line constraint if the current point satisfies it
+  // if all constraints are satisfied or violated return the bool
+
+  std::vector<std::vector<float>> b_vect = b_vector;
+
+  int num_constraints = A_matrix.size();
+
+  int count = 0;
+
+
+  for (size_t row = 0; row < A_matrix.size();row++)
+  {
+      bool horizontal = false;
+
+   // std::cout<<"row: "<<row<<std::endl;
+   //           std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
+
+    if(A_matrix[row][0] == 1) // the equation for the horizontal line is flipped (equation describing line below robot is actually above)
+                              // in order to get the right representation the intercept's sign should be flipped
+    {
+      b_vect[row][0] = b_vect[row][0]*-1; // positive intercept is top half-plane, negative is bottom half-plane
+      horizontal = true;
+    }
+
+    float result = (A_matrix[row][0] * point.x + A_matrix[row][1] * point.y) - b_vect[row][0];
+
+    //std::cout<<"Result:"<<result<<std::endl;
+
+
+ 
+    
+
+   // else if (b_vect[row][0] > 0) //if intercept is positive, top half plane of origin
+    //{ 
+
+    if (horizontal == true)
+    {
+        if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x ) // point satisfy the constraint, but for lines above robot
+        {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+          count++;
+        }
+
+      else if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x) // points satisfy constraint for lines below the robot
+      {
+
+        count++;
+      }
+
+    }
+    else
+    {
+      // was <0 before
+      // cases representing negative slope of the constraint
+       if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].y > robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x && A_matrix[row][0] < 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+      else if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].y > robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x && A_matrix[row][0] < 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+      else if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].y < robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x && A_matrix[row][0] < 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+      // was > 0 before
+      else if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].y < robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x && A_matrix[row][0] < 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+
+      // cases representing positive slope of the constraint
+      // was < 0 before !
+       if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].y > robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x && A_matrix[row][0] > 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+      else if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].y > robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x && A_matrix[row][0] > 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+      else if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].y < robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x > robot_pose_.pose.position.x && A_matrix[row][0] > 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+      else if (result < 0 && considered_centroid.obstacles[row].polygon.points[0].y < robot_pose_.pose.position.y && considered_centroid.obstacles[row].polygon.points[0].x < robot_pose_.pose.position.x && A_matrix[row][0] > 0  ) // point satisfy the constraint, but for lines above robot
+       {
+       // std::cout<<"centroid x coord: "<<stored_centroid_point_.obstacles[row].polygon.points[0].x<<std::endl;
+        count++;
+      }
+
+      // else if (result > 0 && considered_centroid.obstacles[row].polygon.points[0].y < robot_pose_.pose.position.y) // points satisfy constraint for lines below the robot
+     // {
+
+       // count++;
+     // }
+
+    }
+
+      
+
+   // }
+  }
+
+
+
+ // if (t==true)
+ // {
+ //   return false;
+ // }
+ // else
+ // {
+  //  return true;
+ // }
+
+  if (count == num_constraints) // all constraints are satisfied, therefore point satisfy 
+  {
+    return false; // return that point does not violate the constraints
+  }
+  else
+  {
+    return true; // if at least one constraint is violated, the point does not satisfy
+  }
+
+  
+  
+
+}
+
+*/
