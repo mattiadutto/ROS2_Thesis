@@ -25,6 +25,7 @@ find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(costmap_converter REQUIRED)
+find_package(costmap_converter_msgs REQUIRED)
 
 
 
@@ -47,6 +48,8 @@ set(dependencies
   nav2_core
   tf2
   costmap_converter
+  costmap_converter_msgs
+
   
 )
 
@@ -63,7 +66,8 @@ set(SOURCES
   src/MPC_diffDrive_fblin.cpp
   src/GUROBIsolver.cpp
   src/fblin_unicycle.cpp
-  
+  src/convex_hull.cpp
+
 )
 
 # Build the main library
@@ -84,7 +88,7 @@ target_link_libraries(nav2_custom_controller /home/mario/Gurobi/gurobi1100/linux
 #)
 
 # Specify the path to the Gurobi library
-#set(GUROBI_LIBRARY "/home/garabetov/Gurobi/gurobi1100/linux64/lib/libgurobi110.so")
+#set(GUROBI_LIBRARY "/home/mario/Gurobi/gurobi1100/linux64/lib/libgurobi110.so")
 
 # Link the nav2_custom_controller library with the Gurobi library
 #target_link_libraries(nav2_custom_controller INTERFACE ${GUROBI_LIBRARY})

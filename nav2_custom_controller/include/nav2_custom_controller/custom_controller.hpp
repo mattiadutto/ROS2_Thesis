@@ -2,6 +2,7 @@
 #define NAV2_CUSTOM_CONTROLLER__CUSTOM_CONTROLLER_HPP_
 
 
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -47,7 +48,7 @@ namespace nav2_custom_controller
 class CustomController : public nav2_core::Controller
 {
 
-    public:
+     public:
 
     CustomController(); 
     ~CustomController() override = default;
@@ -95,16 +96,21 @@ class CustomController : public nav2_core::Controller
 
     void timer_callback();
 
-    void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
+    void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,bool print_convex_region);
 
 
     costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
-    costmap_converter_msgs::msg::ObstacleArrayMsg  polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &poylgon_centroids, const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
-
+    void polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
+    const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid);
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
+    void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
+
+    bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
+    void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
+    void compute_most_violated_constraints();
     
 
 
@@ -155,6 +161,8 @@ class CustomController : public nav2_core::Controller
 
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr point_marker_pub_;
+
 
     //costmap_converter::CostmapToPolygonsDBSMCCH test_;
 
