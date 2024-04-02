@@ -2,6 +2,7 @@
 #define NAV2_CUSTOM_CONTROLLER__CUSTOM_CONTROLLER_HPP_
 
 
+#include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
@@ -29,6 +30,10 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include "nav_msgs/msg/grid_cells.hpp"
+
+#include "tf2_ros/transform_broadcaster.h"
+
+#include "nav2_custom_controller/convex_hull.hpp"
 
 #include "nav2_custom_controller/fblin_unicycle.h"
 #include "nav2_custom_controller/MPC_diffDrive_fblin.h"
@@ -105,7 +110,7 @@ class CustomController : public nav2_core::Controller
 
     protected:
     
-    // Member declaration
+  // Member declaration
     rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
     std::shared_ptr<tf2_ros::Buffer> tf_;
     std::string plugin_name_;
@@ -134,7 +139,8 @@ class CustomController : public nav2_core::Controller
     nav2_costmap_2d::Costmap2D* costmap_;
 
 
-    FeedbackLin feedback_lin_;
+
+
 
     nav_msgs::msg::Path global_plan_;
     nav_msgs::msg::Path centroid_path_msg_;
@@ -145,7 +151,12 @@ class CustomController : public nav2_core::Controller
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
     rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
+
+
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
+
+    //costmap_converter::CostmapToPolygonsDBSMCCH test_;
 
      rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr tf_pub_;
 
@@ -153,7 +164,49 @@ class CustomController : public nav2_core::Controller
  
     rclcpp::TimerBase::SharedPtr wall_timer_;
 
-     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+//std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+    
+
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+     geometry_msgs::msg::TransformStamped received_tf_;
+
+
+    // std::vector<std::vector<float>> line_eq_vect_;
+  //   std::vector<std::vector<float>> m_vect_;
+     std::vector<std::vector<float>> b_vect_;
+     std::vector<std::vector<float>> A_obst_matrix_;
+  
+
+     // decide for these either to be private members or pass them as ref
+    std::vector<std::vector<float>> A_violated_matrix_,b_violated_vect_,result_pose_stored_;
+
+    std::vector<std::vector<float>> A_most_violated_matrix_;
+    std::vector<std::vector<float>> b_most_violated_vect_;
+      float result_pose,result_centroid;
+
+
+
+    FeedbackLin feedback_lin_;
+
+    std::vector<Coordinate> m_polygon; 
+     std::vector<Coordinate> m_convexHull;
+
+
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_non_constrained_;
+
+  std::vector<geometry_msgs::msg::Point32> robot_footprint_;
+  std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
+
+    costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
+   costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
+    //  std::vector<geometry_msgs::msg::Point32> final_stored_centroid_point_;
+      costmap_converter_msgs::msg::ObstacleArrayMsg final_stored_centroid_point_;
+
+
 
 
 

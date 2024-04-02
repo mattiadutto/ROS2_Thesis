@@ -60,6 +60,27 @@ CustomController::CustomController()
       costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),
       MPC_(std::make_unique<MPC_diffDrive_fblin>())
 { 
+
+    A_obst_matrix_.push_back({0.0,0.0});
+    b_vect_.push_back({0.0});
+
+
+
+    A_most_violated_matrix_.push_back({0.0,0.0});
+    b_most_violated_vect_.push_back({0.0});
+
+    robot_footprint_.resize(4);
+
+    robot_footprint_[0].x = 0.4; 
+    robot_footprint_[0].y = 0.3; 
+    robot_footprint_[1].x = 0.4;
+    robot_footprint_[1].y = -0.3;
+    robot_footprint_[2].x = -0.4;
+    robot_footprint_[2].y = 0.3;
+    robot_footprint_[3].x = -0.4;
+    robot_footprint_[3].y = -0.3;
+
+
 }
 
 
