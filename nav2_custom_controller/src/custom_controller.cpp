@@ -177,10 +177,10 @@ template <typename Iter, typename Getter>
     point_vect_.clear();
     point_vect_rotated_.clear();
 
-    double minX = -1;
-    double maxX = 1;
-    double minY = -1;
-    double maxY = 1;
+    double minX = -0.8;
+    double maxX = 0.8;
+    double minY = -0.8;
+    double maxY = 0.8;
     double resolution = 0.1;
 
     for (double x = minX; x <= maxX; x += resolution)
@@ -352,6 +352,9 @@ void CustomController::timer_callback()
     }
   }
 
+
+
+
   int num = 0;
   
 
@@ -433,7 +436,7 @@ void CustomController::timer_callback()
       std::cout << val << " ";
     }
     std::cout << std::endl;
-  }
+  } 
 
   std::cout<<"A_most_violated_matrix"<<std::endl;
 
@@ -636,7 +639,7 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
 const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
 {
 
-  double thresh = 1;
+  double thresh = 1.3;
 
   int index=0;
 
@@ -765,6 +768,7 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   {
 
    intercept = point1.y - slope * point1.x;
+   // was -slope before!
    rowVector = {-slope, 1};
 
   }
@@ -797,15 +801,22 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
   if (!A_matrix.empty() && !b_vect.empty())
   {
 
+    std::cout<<"current b vect"<<b_vect[b_vect.size()-1][0]<<std::endl;
+
     for (auto &point : robot_footprint)
     {
+
+      std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
+      std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
+      std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
+
 
 
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
       
-      //std::cout<<"result pose: "<<result_pose<<std::endl;
-      //std::cout<<"result centroid: "<<result_centroid<<std::endl;  
+      std::cout<<"result pose: "<<result_pose<<std::endl;
+      std::cout<<"result centroid: "<<result_centroid<<std::endl;  
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
         result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
@@ -814,11 +825,7 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
         std::cout<<"result pose: "<<result_pose<<std::endl;
         std::cout<<"result centroid: "<<result_centroid<<std::endl;
 
-        // the problem here is when I have 0 of the multiplication I cannot differentiate on which side of the line is the point because it 
-        // will always be zero therefore when I get the zero case I need to perform additional check between 4 of the points if they are the same sign 
-        // therefore they are not cut by the line (line is not crossing the footprint) so I can do count++ !!! NB!!
-
-        if(result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
+        if(result_pose*result_centroid > 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
 
           result_footprint_points_stored.push_back({result_pose});
@@ -826,14 +833,12 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
         }
 
-        else if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
+        else if (result_pose*result_centroid < 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
         {
-          //count++;
-          result_footprint_points_stored.push_back({result_pose});
+          result_footprint_points_stored.push_back({0});
 
 
         }
-      //  std::cout<<"COUNT: "<<count<<std::endl;
 
       }
 
@@ -843,20 +848,15 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
       // was also || result_pose * result_centroid == 0 before !
       else
       {
-        if (result_pose * result_centroid < 0)
+        if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
-          //count++;
           result_footprint_points_stored.push_back({result_pose});
 
         }
-        else if (result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
+        else if (result_pose * result_centroid > 0)
         {
-
-          result_footprint_points_stored.push_back({result_pose});
-
+          result_footprint_points_stored.push_back({0});
         }
-
-
       }
 
     }
@@ -883,7 +883,7 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
 
 
-    std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3];
+    std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3]<<std::endl;;
 
     // Check if all values have the same sign
     bool all_positive = true;
@@ -898,6 +898,11 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
         else if (value < 0)
         {
             all_positive = false;
+        }
+        else if ( value == 0)
+        {
+          all_negative = false;
+          all_positive = false;
         }
     }
 
@@ -947,6 +952,8 @@ void CustomController::compute_most_violated_constraints()
 
   for (size_t row = 0; row < result_pose_stored_.size(); row++)
   {
+
+    // was > before
 
     if(result_pose_stored_[row][0] < largest)
     {
