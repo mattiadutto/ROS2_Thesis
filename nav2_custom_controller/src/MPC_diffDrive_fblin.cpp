@@ -179,6 +179,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         return false;
     }
 
+
+
     // Compute the prediction of the plant states based on the previous step control vector
     double act_x, act_y, act_theta;
     // at first pass k=0 positions 0,1,2 of predictRobotState will be 0 
@@ -269,6 +271,11 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
     {
         _infeasibleSolCnt = 0;
     }
+
+if (_optimVect.size() != 0)
+{ 
+    std::cout<<" optimVect"<<_optimVect[0]<<std::endl;
+}
 
     return true;
 }
@@ -376,7 +383,7 @@ void MPC_diffDrive_fblin::compute_AcalMatrix() {
     }
 
     // Check matrix
-//    saveMatrixToFile("Acal_matrix.csv", _Acal);
+    saveMatrixToFile("Acal_matrix.csv", _Acal);
 }
 
 void MPC_diffDrive_fblin::compute_BcalMatrix() {
@@ -389,7 +396,7 @@ void MPC_diffDrive_fblin::compute_BcalMatrix() {
             _Bcal.block(2*i, 2*(j-1), 2, 2) = _plant_A.pow(i-j)*_plant_B;
 
     // Check matrix
-//    saveMatrixToFile("Bcal_matrix.csv", _Bcal);
+    saveMatrixToFile("Bcal_matrix.csv", _Bcal);
 }
 
 void MPC_diffDrive_fblin::compute_QcalMatrix() {
@@ -400,7 +407,7 @@ void MPC_diffDrive_fblin::compute_QcalMatrix() {
     _Qcal.diagonal() << Eigen::VectorXd::Ones(_N*2)*_q, Eigen::VectorXd::Ones(2)*_p;
 
     // Check matrix
-//    saveMatrixToFile("Qcal_matrix.csv", _Qcal);
+    saveMatrixToFile("Qcal_matrix.csv", _Qcal);
 }
 
 void MPC_diffDrive_fblin::compute_RcalMatrix() {
@@ -411,7 +418,7 @@ void MPC_diffDrive_fblin::compute_RcalMatrix() {
     _Rcal.diagonal() = Eigen::VectorXd::Ones(_N*2)*_r;
 
     // Check matrix
-//    saveMatrixToFile("Rcal_matrix.csv", _Rcal);
+    saveMatrixToFile("Rcal_matrix.csv", _Rcal);
 }
 
 void MPC_diffDrive_fblin::compute_objectiveMatrix() {
@@ -430,8 +437,8 @@ void MPC_diffDrive_fblin::compute_objectiveMatrix() {
     _f = (_Acal*_actMPCstate-_refStateVect).transpose()*_Qcal*_Bcal;
 
     // Check matrix
-//    saveMatrixToFile("H_matrix.csv", _H);
-//    saveMatrixToFile("f_matrix.csv", _f);
+    saveMatrixToFile("H_matrix.csv", _H);
+    saveMatrixToFile("f_matrix.csv", _f);
 }
 
 void MPC_diffDrive_fblin::compute_wheelVelocityConstraint() {
@@ -457,8 +464,8 @@ void MPC_diffDrive_fblin::compute_wheelVelocityConstraint() {
     }
 
     // Check matrix
-//    saveMatrixToFile("Ain_vel_matrix.csv", _Ain_vel);
-//    saveMatrixToFile("Bin_vel_matrix.csv", _Bin_vel);
+    saveMatrixToFile("Ain_vel_matrix.csv", _Ain_vel);
+    saveMatrixToFile("Bin_vel_matrix.csv", _Bin_vel);
 }
 
 void MPC_diffDrive_fblin::saveMatrixToFile(std::string fileName, Eigen::MatrixXd matrix) {
