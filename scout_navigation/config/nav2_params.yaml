@@ -305,6 +305,26 @@ controller_server:
       costmap_converter_rate: 5
       odom_topic: <robot_namespace>/odom
 
+      obstacle_distance_threshold: 1.0
+
+      prediction_horizon: 10
+      mpc_sampling_time: 0.2
+      Q: 2.0
+      R: 1.0
+      max_infeasible_solutions: 2
+      variable_upper_bound_from: 2.0
+      variable_upper_bound_to: 100.0
+      variable_lower_bound_from: 2.0
+      variable_lower_bound_to: -100.0
+      p_distance: 0.1
+      feedback_linearization_sampling_time: 0.01
+      max_wheel_speeds: 10.0
+      wheel_radius: 0.2
+      base_width: 0.4
+      
+
+
+
 
 controller_server_rclcpp_node:
   ros__parameters:

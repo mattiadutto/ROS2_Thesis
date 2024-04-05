@@ -9,7 +9,8 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(GUROBI_LIB_DIR "/home/mario/Gurobi/gurobi1100/linux64/lib")
+#set(GUROBI_LIB_DIR "/home/mario/Gurobi/gurobi1100/linux64/lib")
+set(GUROBI_LIB_DIR "$ENV{HOME}/Gurobi/gurobi1100/linux64/lib")
 
 
 
