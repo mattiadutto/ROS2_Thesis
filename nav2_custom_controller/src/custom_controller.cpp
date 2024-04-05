@@ -204,6 +204,11 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
 // MPC part //////////////
 
+
+
+
+
+
   //MPC param
   N_ = 2;
   Ts_MPC_ = 0.2;
@@ -216,7 +221,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
   Ts_fblin_ = 0.01;
 
   // Robot parameters
-  wMax_ = 10.0;
+  wMax_ = 30.0; // was 10 originally
   wMin_ = -wMax_;
   R_ = 0.2;
   d_ = 0.4;
@@ -475,7 +480,7 @@ void CustomController::timer_callback()
   convex_hull_array.obstacles[0] = obstacle_msg;
 
   // printing
-
+/*
 
   std::cout<<"A_matrix"<<std::endl;
 
@@ -517,6 +522,7 @@ void CustomController::timer_callback()
     std::cout << std::endl;
   }
   
+  */
 
   // function that creates polygons/lines and publishes them as Marker msg for visualisation
 
@@ -890,29 +896,29 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
   if (!A_matrix.empty() && !b_vect.empty())
   {
 
-    std::cout<<"current b vect"<<b_vect[b_vect.size()-1][0]<<std::endl;
+   // std::cout<<"current b vect"<<b_vect[b_vect.size()-1][0]<<std::endl;
 
     for (auto &point : robot_footprint)
     {
 
-      std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
-      std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
-      std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
+    //  std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
+    //  std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
+    //  std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
 
 
 
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
       
-      std::cout<<"result pose: "<<result_pose<<std::endl;
-      std::cout<<"result centroid: "<<result_centroid<<std::endl;  
+    //  std::cout<<"result pose: "<<result_pose<<std::endl;
+    //  std::cout<<"result centroid: "<<result_centroid<<std::endl;  
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
         result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
         result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
 
-        std::cout<<"result pose: "<<result_pose<<std::endl;
-        std::cout<<"result centroid: "<<result_centroid<<std::endl;
+     //   std::cout<<"result pose: "<<result_pose<<std::endl;
+     //   std::cout<<"result centroid: "<<result_centroid<<std::endl;
 
         if(result_pose*result_centroid > 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
@@ -972,7 +978,7 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
 
 
-    std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3]<<std::endl;;
+  //  std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3]<<std::endl;;
 
     // Check if all values have the same sign
     bool all_positive = true;
@@ -998,7 +1004,7 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
     // If all values are either positive or negative, the product will be positive
     if (all_positive || all_negative)
     {
-        std::cout << "All values have the same sign" << std::endl;
+   //     std::cout << "All values have the same sign" << std::endl;
         count = 4;
     }
 }
@@ -1174,6 +1180,7 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
 {
 
+
   static auto start_time_MPC = std::chrono::high_resolution_clock::now();
 
     // Convert to system_clock time point (for human-readable output)
@@ -1205,6 +1212,9 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   tf2::fromMsg(pose.pose.orientation, quat);
   tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
+    std::cout<< "yaw =  "<<yaw<<std::endl;
+
+
   MPC_->set_actualRobotState(Eigen::Vector3d(pose.pose.position.x,pose.pose.position.y, yaw));
 
  // Find the closest pose on the path to the robot
@@ -1234,9 +1244,14 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   tf2::fromMsg(target_pose_.pose.orientation, quat2);
   tf2::Matrix3x3(quat2).getRPY(roll2, pitch2, yaw2);
 
-MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,yaw2));
+//  std::cout<< "yaw2 =  "<<yaw2<<std::endl;
 
-if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_MPC).count() >= 3000) // execute the MPC every 0.2 seconds
+//MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,0));
+MPC_->set_referenceRobotState(Eigen::Vector3d(1, 0.5,yaw));
+
+
+
+if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_MPC).count() >= 200) // execute the MPC every 0.2 seconds
  {
 
     // Get the current time point
@@ -1269,7 +1284,7 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
   start_time_MPC = std::chrono::high_resolution_clock::now();
  }
 
-if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_lin).count() >= 1000) // execute the FBLIN every 0.01 seconds
+if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_lin).count() >= 10) // execute the FBLIN every 0.01 seconds
 {
 
  // std::cout<<"Linearization executed after 0.01 seconds"<<std::endl;
@@ -1295,7 +1310,8 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 // store computed v and w from fblin class to v_act, w_act variables
  MPC_->get_actualControl(v_act, w_act);
 
- std::cout<<"mpc lin speed"<<v_act<<std::endl;
+
+
 
 
   // Apply feedback linearization
@@ -1307,7 +1323,8 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
 
 
-
+// std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
+//std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
   
 
 
@@ -1316,16 +1333,16 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
 
 
-
-
-
-
-
-
+//////// Feedback linearization only
 
 
 
 /*
+
+
+
+
+
   double epsilon_ = 0.15;
 
   // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
@@ -1382,6 +1399,11 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
   cmd_vel_.header.frame_id = pose.header.frame_id;
   cmd_vel_.header.stamp = clock_->now();
+
+  std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
+  std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
+
+
 */
   return cmd_vel_;
 }

@@ -179,6 +179,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         return false;
     }
 
+    std::cout<<"execute mpc controller function called"<<std::endl;
+
 
 
     // Compute the prediction of the plant states based on the previous step control vector
@@ -222,6 +224,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         _predictRobotState(3*(k+1)) = act_x; // at k = 0 it will store x y theta in 3 4 and 5 row 
                                              // at k = 1 it will be  in positions 6 7 8
                                             // at k = 2 (last one if N =3) in positions 9 10 11 (as predictRobot state has 11 positions )
+       
+        std::cout<<"_predictRobotState: "<<act_x<<std::endl;
         _predictRobotState(3*(k+1)+1) = act_y;
         _predictRobotState(3*(k+1)+2) = act_theta;
     }
@@ -249,6 +253,7 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
     if (!_solver->solveProblem(_optimVect, objectiveValue, optimizerStatus))
     {
         _optimVect.setZero();
+
 
         std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error solving the optimization problem" << std::endl;
         return false;
@@ -291,6 +296,8 @@ bool MPC_diffDrive_fblin::executeLinearizationController() {
     
     // sets the current x y and theta of the robot and save them as x y theta for the feedback lin class
     _fblinController->set_unicycleState(_actRobotState(0), _actRobotState(1), _actRobotState(2));
+
+    std::cout<<"actRobotState(2) = "<<_actRobotState(2)<<std::endl;
 
     // Execute the feedback linearization law
     // this should obtain v and w from xp dot and yp_dot

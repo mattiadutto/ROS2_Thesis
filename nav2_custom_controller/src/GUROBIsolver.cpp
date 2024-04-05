@@ -328,6 +328,8 @@ bool GUROBIsolver::solveProblem(Eigen::VectorXd& result, double& objectiveValue,
 
             objectiveValue = -1.0;
             optimizerStatus = GUROBIsolver::INFEASIBLE;
+
+            std::cout<<"solver infeasible"<<std::endl;
             return false;
         }
         else
@@ -338,11 +340,14 @@ bool GUROBIsolver::solveProblem(Eigen::VectorXd& result, double& objectiveValue,
 
             objectiveValue = -1.0;
             optimizerStatus = GUROBIsolver::OTHER;
+            std::cout<<"solver other"<<std::endl;
             return false;
         }
     } catch(GRBException e) {
         std::cout << "[GUROBIsolver.solveProblem] GUROBI failed solving QP problem:" << std::endl;
         std::cout << "\t [" << e.getErrorCode() << ":" << e.getMessage() << "]" << std::endl;
+
+        std::cout<<"solver exception raised"<<std::endl;
 
         return false;
     }
