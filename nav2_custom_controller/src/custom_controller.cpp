@@ -68,6 +68,12 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     robot_footprint_[3].x = -0.4;
     robot_footprint_[3].y = -0.3;
 
+    ub_.push_back(0.0);
+    ub_.push_back(0.0);
+
+    lb_.push_back(0.0);
+    lb_.push_back(0.0);
+
 
 }
 
@@ -76,6 +82,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     std::string name, const std::shared_ptr<tf2_ros::Buffer>  tf,
     const std::shared_ptr<nav2_costmap_2d::Costmap2DROS>  costmap_ros)
   {
+
 
     node_ = parent;
 
@@ -94,7 +101,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     costmap_ = costmap_ros_->getCostmap();
 
     ////////////////////////////////////////////////
-    
+
     // Parameter declaration 
 
     // costmap_converter
@@ -154,7 +161,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     // Robot parameters
 
     declare_parameter_if_not_declared(
-      node, plugin_name_ + ".max_wheel_speeds", rclcpp::ParameterValue(10));
+      node, plugin_name_ + ".max_wheel_speeds", rclcpp::ParameterValue(10.0));
 
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".wheel_radius", rclcpp::ParameterValue(0.2));
@@ -183,8 +190,6 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     wMin_ = -wMax_;
     node->get_parameter(plugin_name_ + ".wheel_radius",R_);
     node->get_parameter(plugin_name_ + ".base_width",d_);
-
-
 
     ////////////////////////////////////////////////
 
@@ -308,6 +313,7 @@ void CustomController::timer_callback()
   try
   { 
 
+  // get tf from map to base link
    received_tf_ = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
 
   } catch (tf2::LookupException &ex)
@@ -318,9 +324,9 @@ void CustomController::timer_callback()
 
   point_vect_rotated_.clear();
 
+  // roto-translate the grid of points with base_link frame
   for (const auto& point : point_vect_)
   {
-
 
     double roll, pitch, yaw;
     tf2::Quaternion quat;
@@ -346,6 +352,7 @@ void CustomController::timer_callback()
 
   robot_footprint_rotated_.clear();
 
+  // roto-translate robot_footprint points with base_link
   for (const auto& footprint_point : robot_footprint_)
   {
 
@@ -369,9 +376,6 @@ void CustomController::timer_callback()
 
     robot_footprint_rotated_.push_back(transformed_point);
 
-
-
-
   }
 
   /// get the obstacles container as a ptr of ObstacleArrayMsg from getObstacles() method
@@ -379,24 +383,18 @@ void CustomController::timer_callback()
 
   costmap_converter_msgs::msg::ObstacleArrayMsg obstacles = *obstacles_ptr;
 
-
-
-
-
-
   // get the global frame 
   std::string frame_id_ = costmap_ros_->getGlobalFrameID();
 
-  // instantiate considered_polygons and considered_centroid
+  // instantiate considered_polygons 
   costmap_converter_msgs::msg::ObstacleArrayMsg considered_polygons;
 
- // costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
-
+  // compute centroids of all obstacles
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid = computeCentroid(obstacles);
-  considered_centroid.obstacles.clear();
+  considered_centroid_.obstacles.clear();
 
   // will save in out parameter considered_polygons and considered_centroid only the polygons below a threshold
-  polygon_filter(centroid,obstacles,considered_polygons,considered_centroid);
+  polygon_filter(centroid,obstacles,considered_polygons,considered_centroid_);
 
   A_violated_matrix_.clear();
   b_violated_vect_.clear();
@@ -405,7 +403,6 @@ void CustomController::timer_callback()
   b_most_violated_vect_.clear();
   A_obst_matrix_.clear();
   b_vect_.clear();
-  //considered_centroid.obstacles.clear();
   stored_centroid_point_.obstacles.clear();
   int it=0;
 
@@ -416,8 +413,8 @@ void CustomController::timer_callback()
     for (int j = 0; j < (int)obstacle.polygon.points.size() - 2; ++j)
     {
 
-      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_rotated_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],robot_pose_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(robot_footprint_rotated_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
       // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
@@ -428,8 +425,8 @@ void CustomController::timer_callback()
       // calculate the equation of the line between last point and first point of the polygon
       auto last_point = obstacle.polygon.points.end();  
       auto prev_point = std::prev(last_point, 2);  
-      calcLineEquation(*prev_point,obstacle.polygon.points.front(),robot_pose_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_rotated_,considered_centroid.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      calcLineEquation(*prev_point,obstacle.polygon.points.front(),robot_pose_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(robot_footprint_rotated_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
     it++;
@@ -439,7 +436,6 @@ void CustomController::timer_callback()
 
   // consider only the points of the grid that are inside the region defined by the most violated constraints
   point_vect_constrained_.clear();
-  point_vect_non_constrained_.clear();
 
   for (const auto& point : point_vect_rotated_)
   {
@@ -448,56 +444,14 @@ void CustomController::timer_callback()
     {
       point_vect_constrained_.push_back(point);
     }
-    else 
-    {
-      point_vect_non_constrained_.push_back(point);
-    }
+
   }
 
+  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> convexHull;
 
-
-
-  int num = 0;
-  
-
-
-  // compute convex hull
-
-  //costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint point;
-
-//  bool invert = false;
-
-// for (const auto& point : point_vect_constrained_)
- //{
-  //if (point.x == 0.3 && point.y == 0.2)
- // {
-  //  invert = false;
-  //}
-  //else
- // {
-  //  invert = true;
- // }
-// }
-
- std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> convexHull;
-
-// std::cout<<"invert: "<<invert<<std::endl;
-
-//if (invert == false)
-//{
-    Polygon polygon(point_vect_constrained_);
-    convexHull = polygon.ComputeConvexHull();
-
-
-//}
-//else if (invert == true)
-//{
-  //  Polygon polygon(point_vect_non_constrained_);
-   // convexHull = polygon.ComputeConvexHull();
-
-//}
-
-
+  // compute the convex hull
+  Polygon polygon(point_vect_constrained_);
+  convexHull = polygon.ComputeConvexHull();
 
   costmap_converter_msgs::msg::ObstacleArrayMsg convex_hull_array;
 
@@ -570,9 +524,9 @@ void CustomController::timer_callback()
 
   publishAsMarker(frame_id_,convex_hull_array,true);
 
+  ///////////////////////////////////////////////////////////
 
-  /// print grid ////
-
+  /// display the grid of points as Marker msg////
 
   visualization_msgs::msg::Marker point_marker; // creater line_list as Marker msg
   point_marker.header.frame_id = frame_id_;
@@ -599,9 +553,9 @@ void CustomController::timer_callback()
 
    point_marker_pub_->publish(point_marker);
 
+//////////////////////////////////////////////////
+
 }
-
-
 
 
 // will determine if a point is inside set of constraints
@@ -690,28 +644,11 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
     }
     
-
-/*
-    for (const auto &point:obstacle.polygon.points)
-    {
-
-     sum_x += point.x;
-     sum_y += point.y;
-
-
-    }*/
-
-
     geometry_msgs::msg::Point32 centroid_point;
     costmap_converter_msgs::msg::ObstacleMsg centroid_of_obstacle;
 
     centroid_point.x = sum_x/total_vertices;
     centroid_point.y = sum_y/total_vertices;
-
-   // std::cout<<"centroid x: "<<centroid_point.x<<std::endl;
-
-
-    
 
     centroid_of_obstacle.header = obstacle.header; 
     centroid_of_obstacle.id = obstacle.id;
@@ -719,8 +656,6 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
     centroid_of_obstacle.polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
 
     centroid.obstacles.push_back(centroid_of_obstacle); // Add the centroid of obstacle to the centroid obstacle array
-
-
 
   }
 
@@ -767,24 +702,17 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
 
   return centroid;
 }
-//// NB combine polygon_filter and computeCentroid to be filterPolygons function !!!!
 
+//// NB combine polygon_filter and computeCentroid to be filterPolygons function !!!!
 void CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
-const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
+  const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
 {
 
-  //double thresh = 1.3;
-
   int index=0;
-
- // obstacles.obstacles[index].polygon.points.clear();
 
   // Iterate over each polygon in polygon_centroids.obstacles
   for (const auto &obstacle:polygon_centroids.obstacles)
   {
-
-
-
 
     // get euclidean distance between current polygon's centroid and robot's pose
     double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
@@ -792,83 +720,21 @@ const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
     if (distance < obstacle_distance_thresh_)
     {
-       // obstacles.obstacles[index].polygon.points.clear();
 
-/*      geometry_msgs::msg::Point32 centroid_point;
-
-      
-      for (auto it = obstacles.obstacles[index].polygon.points.begin(); it != std::prev(obstacles.obstacles[index].polygon.points.end()); ++it)
-      {    
-        // store in considered_polygon the obstacle to which the computed centroid refers to
-      //considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
-
-        auto &point = *it;
-
-        centroid_point = point;
-
-        obstacles.obstacles[index].polygon.points.push_back(centroid_point); // Add the centroid point to the centroid of obstacle's points       
-
-
-      }*/
-
-
-
-      //  considered_polygons.obstacles.push_back(obstacles.obstacles[index]); // Add the centroid of obstacle to the centroid obstacle array
-
-
-
-
-            // save also as another array the centroids ( so that for example considered_polygon[1] and centroid_vect[1] will be for the same polygon)
-            //centroid_vect.obstacles.push_back(obstacle.obstacles[index])
-
-            considered_centroid.obstacles.push_back(obstacle);
-
-              //  std::cout<<"Centroid X coord: "<<considered_centroid.obstacles[index].polygon.points[0].x<<std::endl;
-
-
-            considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
-
-
-            //considered_polygons.obstacles[1] = centroid_vect.obstacles[1]
-
-
-      }
-
-    index++;
+      considered_centroid.obstacles.push_back(obstacle);
+      considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
 
     }
 
-  
+    index++;
+
+  }
 
   // Return the vector container with considered polygons below the threshold
   std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
-//  std::cout<<"Number of vertiecs of first polygon:"<<considered_polygons.obstacles[0].polygon.points.size()<<std::endl;
- 
-if (obstacles.obstacles.size() != 0)
-  {
-
- //   std::cout<<"Total vertices not considered: "<< obstacles.obstacles[0].polygon.points.size()<<std::endl;
-}
-
-  if (considered_polygons.obstacles.size() != 0)
-  {
-
-   // std::cout<<"Total vertices: "<< considered_polygons.obstacles[0].polygon.points.size()<<std::endl;
-
-    //int index =0 ;
-    //for (const auto& vertex : considered_polygons.obstacles[0].polygon.points)
-    //{
-      
-    //  std::cout<<"Vertex "<< index<<std::endl;
-    //  std::cout<< "x = "<<vertex.x<<std::endl;
-    //  std::cout<< "y = "<<vertex.y<<std::endl;
-    //  index++;
-  //  }
-  }
   
 }
 
-//NB! consider the footprint of the robot not the origin when checking if constraints violates ( need to add +0.35 and -0.35 on both size for the x and +0.25 and -0.25 on the y)
 void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
 {
 
@@ -881,7 +747,6 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   // calculate slope "m"
 
   slope = (point2.y - point1.y)/(point2.x - point1.x);
-  //std::cout<<"Slope: "<<slope<<std::endl;
 
 
   // if the slope is -inf or inf we have horizontal line
@@ -901,7 +766,6 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   {
 
    intercept = point1.y - slope * point1.x;
-   // was -slope before!
    rowVector = {-slope, 1};
 
   }
@@ -910,8 +774,6 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   b_vect.push_back({intercept});
     
 }
-
-
 
 // decide if should I pass out parameters or save the results to private members
 void CustomController::compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
@@ -978,7 +840,6 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
       // if their signs are different, then the current constraint is violated by the robot
      // if their product is 0 it means that the centroid lies on the line (2 points line)
 
-      // was also || result_pose * result_centroid == 0 before !
       else
       {
         if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
@@ -994,67 +855,42 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
     }
 
-/*
-
     if (!result_footprint_points_stored.empty())
     {
-
-          std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3];
-
-
-      if ( (result_footprint_points_stored[0] * result_footprint_points_stored[1] * result_footprint_points_stored[2] * result_footprint_points_stored[3]) > 0)
-      {
-                std::cout<<"been here: "<<std::endl;
-
-        count = 4;
-      }
-
-    } */
-
-    if (!result_footprint_points_stored.empty())
-{
-
-
 
   //  std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3]<<std::endl;;
 
     // Check if all values have the same sign
-    bool all_positive = true;
-    bool all_negative = true;
-    
-    for (float value : result_footprint_points_stored)
-    {
+      bool all_positive = true;
+      bool all_negative = true;
+
+      for (float value : result_footprint_points_stored)
+      {
         if (value > 0)
         {
-            all_negative = false;
+          all_negative = false;
         }
         else if (value < 0)
         {
-            all_positive = false;
+          all_positive = false;
         }
         else if ( value == 0)
         {
           all_negative = false;
           all_positive = false;
         }
-    }
+      }
 
     // If all values are either positive or negative, the product will be positive
-    if (all_positive || all_negative)
-    {
+      if (all_positive || all_negative)
+      {
    //     std::cout << "All values have the same sign" << std::endl;
         count = 4;
+      }
     }
-}
-
-
-
-    
-    //std::cout<<"COUNT: "<<count<<std::endl;
 
     if (count == 4) // the robot's footprint violates the current constraint
     { 
-
 
       A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
       b_violated_vect_.push_back({b_vect[b_vect.size()-1][0]});
@@ -1065,16 +901,11 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
       {
         centroid_of_obstacle.polygon.points.push_back(centroid_point); 
         stored_centroid_point_.obstacles.push_back(centroid_of_obstacle);
-
       }
-    
-
     }
     old_centroid_point = centroid_point;
   }
 }
-
-
 
 void CustomController::compute_most_violated_constraints()
 {
@@ -1087,13 +918,11 @@ void CustomController::compute_most_violated_constraints()
   {
 
     // was > before
-
     if(result_pose_stored_[row][0] < largest)
     {
       largest = result_pose_stored_[row][0];
       largest_index = row;
     }
-
 
   }
 
@@ -1219,6 +1048,7 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
 {
 
 
+/*
   static auto start_time_MPC = std::chrono::high_resolution_clock::now();
 
     // Convert to system_clock time point (for human-readable output)
@@ -1366,7 +1196,7 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
   
 
 
-
+*/
 
 
 
@@ -1375,7 +1205,7 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
 
 
-/*
+
 
 
 
@@ -1438,11 +1268,11 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
   cmd_vel_.header.frame_id = pose.header.frame_id;
   cmd_vel_.header.stamp = clock_->now();
 
-  std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
-  std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
+ // std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
+ // std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
 
 
-*/
+
   return cmd_vel_;
 }
 

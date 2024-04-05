@@ -125,11 +125,6 @@ class CustomController : public nav2_core::Controller
     rclcpp::Logger logger_{rclcpp::get_logger("CustomController")};
     rclcpp::Clock::SharedPtr clock_;
 
-    //std::unique_ptr<costmap_converter::CostmapToPolygonsDBSMCCH> costmap_converter_polygons_;
-
-  //  costmap_converter::CostmapToPolygonsDBSMCCH* costmap_converter_polygons_;
-
-
     rclcpp::Node::SharedPtr intra_proc_node_;
 
     std::string costmap_converter_plugin_; //!< Define a plugin name of the costmap_converter package (costmap cells are converted to points/lines/polygons)
@@ -144,10 +139,6 @@ class CustomController : public nav2_core::Controller
 
     nav2_costmap_2d::Costmap2D* costmap_;
 
-
-
-
-
     nav_msgs::msg::Path global_plan_;
     nav_msgs::msg::Path centroid_path_msg_;
     geometry_msgs::msg::PoseStamped target_pose_;
@@ -157,100 +148,69 @@ class CustomController : public nav2_core::Controller
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
     rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
-
-
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr point_marker_pub_;
 
-
-    //costmap_converter::CostmapToPolygonsDBSMCCH test_;
-
-
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
- 
     rclcpp::TimerBase::SharedPtr wall_timer_;
 
-//std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
-    
+    geometry_msgs::msg::TransformStamped received_tf_;
 
+    double obstacle_distance_thresh_;
 
+    std::vector<std::vector<float>> b_vect_;
+    std::vector<std::vector<float>> A_obst_matrix_;
 
-
-     geometry_msgs::msg::TransformStamped received_tf_;
-
-
-     double obstacle_distance_thresh_;
-
-    // std::vector<std::vector<float>> line_eq_vect_;
-  //   std::vector<std::vector<float>> m_vect_;
-     std::vector<std::vector<float>> b_vect_;
-     std::vector<std::vector<float>> A_obst_matrix_;
-  
 
      // decide for these either to be private members or pass them as ref
     std::vector<std::vector<float>> A_violated_matrix_,b_violated_vect_,result_pose_stored_;
 
     std::vector<std::vector<float>> A_most_violated_matrix_;
     std::vector<std::vector<float>> b_most_violated_vect_;
-      float result_pose,result_centroid;
-
-
+    float result_pose,result_centroid;
 
     FeedbackLin feedback_lin_;
 
     std::vector<Coordinate> m_polygon; 
-     std::vector<Coordinate> m_convexHull;
+    std::vector<Coordinate> m_convexHull;
 
 
-  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
-  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
-  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
-  std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_non_constrained_;
+    std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
+    std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
+    std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
 
-  std::vector<geometry_msgs::msg::Point32> robot_footprint_;
-  std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
+    std::vector<geometry_msgs::msg::Point32> robot_footprint_;
+    std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
 
-    costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid;
-   costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
-    //  std::vector<geometry_msgs::msg::Point32> final_stored_centroid_point_;
-      costmap_converter_msgs::msg::ObstacleArrayMsg final_stored_centroid_point_;
+    costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid_;
+    costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
+    costmap_converter_msgs::msg::ObstacleArrayMsg final_stored_centroid_point_;
 
+    // MPC part 
 
+    std::unique_ptr<MPC_diffDrive_fblin> MPC_;
 
-
-
- // MPC part ///////////////////////////////////
-  std::unique_ptr<MPC_diffDrive_fblin> MPC_;
-
-  // MPC parameters
-     int N_;
-     double Ts_MPC_;
-     double q_;
-     double r_;
-     int maxInfeasibleSolution_;
+    // MPC parameters
+    int N_;
+    double Ts_MPC_;
+    double q_;
+    double r_;
+    int maxInfeasibleSolution_;
 
     // Feedback linearization parameters
-     double p_dist_;
-     double Ts_fblin_;
+    double p_dist_;
+    double Ts_fblin_;
 
     // Robot parameters
-     double wMax_;
-     double wMin_;
-     double R_;
-     double d_;
+    double wMax_;
+    double wMin_;
+    double R_;
+    double d_;
 
-     std::vector<double> lb_;
+    std::vector<double> lb_;
     std::vector<double> ub_;
-
-
-
-
-
-
 };
-
-
 } // namespace nav2_custom_controller
 
 #endif
