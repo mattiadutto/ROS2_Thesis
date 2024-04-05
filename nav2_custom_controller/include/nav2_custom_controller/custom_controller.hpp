@@ -166,7 +166,6 @@ class CustomController : public nav2_core::Controller
 
     //costmap_converter::CostmapToPolygonsDBSMCCH test_;
 
-     rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr tf_pub_;
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
  
@@ -175,10 +174,13 @@ class CustomController : public nav2_core::Controller
 //std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
     
 
-    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+
 
      geometry_msgs::msg::TransformStamped received_tf_;
 
+
+     double obstacle_distance_thresh_;
 
     // std::vector<std::vector<float>> line_eq_vect_;
   //   std::vector<std::vector<float>> m_vect_;

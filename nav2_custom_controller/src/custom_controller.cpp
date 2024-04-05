@@ -42,13 +42,6 @@ template <typename Iter, typename Getter>
     return lowest_it;
   }
 
-
-
-
-
-
-
-
 // Define a lambda function for calculating Euclidean distance
   auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
     return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
@@ -60,12 +53,10 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     A_obst_matrix_.push_back({0.0,0.0});
     b_vect_.push_back({0.0});
-
-
-
     A_most_violated_matrix_.push_back({0.0,0.0});
     b_most_violated_vect_.push_back({0.0});
 
+    // define a safe zone around the robot's footprint
     robot_footprint_.resize(4);
 
     robot_footprint_[0].x = 0.4; 
@@ -102,7 +93,11 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     // asign the costmap as a pointer costmap_
     costmap_ = costmap_ros_->getCostmap();
 
+    ////////////////////////////////////////////////
+    
     // Parameter declaration 
+
+    // costmap_converter
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".costmap_converter_plugin", rclcpp::ParameterValue("costmap_converter::CostmapToLinesDBSRANSAC"));
 
@@ -112,28 +107,102 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".odom_topic", rclcpp::ParameterValue(""));
 
+    // obstacle algorithm parameters
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".obstacle_distance_threshold", rclcpp::ParameterValue(1.0));
+
+
+    // MPC parameters
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".prediction_horizon", rclcpp::ParameterValue(10));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".mpc_sampling_time", rclcpp::ParameterValue(0.2));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".Q", rclcpp::ParameterValue(2.0));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".R", rclcpp::ParameterValue(1.0));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".max_infeasible_solutions", rclcpp::ParameterValue(2));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".variable_upper_bound_from", rclcpp::ParameterValue(2.0));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".variable_upper_bound_to", rclcpp::ParameterValue(100.0));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".variable_lower_bound_from", rclcpp::ParameterValue(2.0));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".variable_lower_bound_to", rclcpp::ParameterValue(-100.0));
+
+
+    // Feedback Linearization parameters
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".p_distance", rclcpp::ParameterValue(0.1));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".feedback_linearization_sampling_time", rclcpp::ParameterValue(0.01));
+
+    // Robot parameters
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".max_wheel_speeds", rclcpp::ParameterValue(10));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".wheel_radius", rclcpp::ParameterValue(0.2));
+
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".base_width", rclcpp::ParameterValue(0.4));
+
+
     // Set parameters from yaml file
     node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
     node->get_parameter(plugin_name_ + ".costmap_converter_rate",costmap_converter_rate_); 
     node->get_parameter(plugin_name_ + ".odom_topic",odom_topic_);
+    node->get_parameter(plugin_name_ + ".obstacle_distance_threshold",obstacle_distance_thresh_);
+    node->get_parameter(plugin_name_ + ".prediction_horizon",N_);
+    node->get_parameter(plugin_name_ + ".mpc_sampling_time",Ts_MPC_);
+    node->get_parameter(plugin_name_ + ".Q",q_);
+    node->get_parameter(plugin_name_ + ".R",r_);
+    node->get_parameter(plugin_name_ + ".max_infeasible_solutions",maxInfeasibleSolution_);
+    node->get_parameter(plugin_name_ + ".variable_upper_bound_from",ub_[0]);
+    node->get_parameter(plugin_name_ + ".variable_upper_bound_to",ub_[1]);
+    node->get_parameter(plugin_name_ + ".variable_lower_bound_from",lb_[0]);
+    node->get_parameter(plugin_name_ + ".variable_lower_bound_to",lb_[1]);
+    node->get_parameter(plugin_name_ + ".p_distance",p_dist_);
+    node->get_parameter(plugin_name_ + ".feedback_linearization_sampling_time",Ts_fblin_);
+    node->get_parameter(plugin_name_ + ".max_wheel_speeds",wMax_);
+    wMin_ = -wMax_;
+    node->get_parameter(plugin_name_ + ".wheel_radius",R_);
+    node->get_parameter(plugin_name_ + ".base_width",d_);
 
 
+
+    ////////////////////////////////////////////////
 
     // costmap_converter plugin load
     try
     {
-        // load the plugin
+      // load the plugin
       costmap_converter_ = costmap_converter_loader_.createSharedInstance(costmap_converter_plugin_);
-        // set odom topic
+      // set odom topic
       costmap_converter_->setOdomTopic(odom_topic_);
-        // initialize costmap_converter by passing nodehandle
+      // initialize costmap_converter by passing nodehandle
       costmap_converter_->initialize(intra_proc_node_);
-        // pass a pointer to the costmap
+      // pass a pointer to the costmap
       costmap_converter_->setCostmap2D(costmap_);
-        // set the rate of the plugin (it must not be much higher than costmap update rate)
+      // set the rate of the plugin (it must not be much higher than costmap update rate)
       const auto rate = std::make_shared<rclcpp::Rate>((double)costmap_converter_rate_);
-        // convert most recent costmap to polygons with startWroker() method
-        // it also invoke compute() method of the loaded plugin that does the conversion to polygons/lines
+      // convert most recent costmap to polygons with startWroker() method
+      // it also invoke compute() method of the loaded plugin that does the conversion to polygons/lines
       costmap_converter_->startWorker(rate, costmap_, "True");
       RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Costmap conversion plugin %s loaded.", costmap_converter_plugin_.c_str());
     }
@@ -158,20 +227,16 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     point_marker_pub_ = node ->create_publisher<visualization_msgs::msg::Marker>("point_marker",10);
 
 
-    tf_pub_ = node->create_publisher<geometry_msgs::msg::TransformStamped>("tf_pub",10);
-
     // Create a lifecycle wall timer with a callback function
 
-    //call timer_callback() every 1 second
+    //call timer_callback() every 1 second 
     wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
 
     pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
-    // costmap_converter_polygons_ = std::make_unique<costmap_converter::CostmapToPolygonsDBSMCCH>();
+    ////////////////////////////////////////////////
 
-    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-
-     //create grid of points 
+    //create grid of points 
 
     point_vect_.reserve(1000);
     point_vect_rotated_.reserve(1000);
@@ -180,10 +245,10 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     point_vect_.clear();
     point_vect_rotated_.clear();
 
-    double minX = -0.8;
-    double maxX = 0.8;
-    double minY = -0.8;
-    double maxY = 0.8;
+    double minX = -1;
+    double maxX = 1;
+    double minY = -1;
+    double maxY = 1;
     double resolution = 0.1;
 
     for (double x = minX; x <= maxX; x += resolution)
@@ -199,68 +264,43 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
       }
     }
 
-    /// MPC PART
+    ////////////////////////////////////////////////////////
 
+    ////////////////////////////////////////////////////////
 
-// MPC part //////////////
+    // MPC PART
 
+    // create and initialize MPC
 
+    MPC_->set_MPCparams(Ts_MPC_, N_, q_, r_, lb_, ub_, maxInfeasibleSolution_);
+    MPC_->set_FBLINparams(Ts_fblin_, p_dist_);
+    MPC_->set_robotParams(wMax_, wMin_, R_, d_);
 
-
-
-
-  //MPC param
-  N_ = 2;
-  Ts_MPC_ = 0.2;
-  q_ = 2.0;
-  r_ = 1.0;
-  maxInfeasibleSolution_ = 2;
-
-  // Feedback linearization parameters
-  p_dist_ = 0.1;
-  Ts_fblin_ = 0.01;
-
-  // Robot parameters
-  wMax_ = 30.0; // was 10 originally
-  wMin_ = -wMax_;
-  R_ = 0.2;
-  d_ = 0.4;
-
-  lb_ = {2, -100.0};
-  ub_ = {2, 100.0};
-
-
-  // create and initialize MPC
-
-  MPC_->set_MPCparams(Ts_MPC_, N_, q_, r_, lb_, ub_, maxInfeasibleSolution_);
-  MPC_->set_FBLINparams(Ts_fblin_, p_dist_);
-  MPC_->set_robotParams(wMax_, wMin_, R_, d_);
-
-  if(MPC_->initialize())
-  {
+    if(MPC_->initialize())
+    {
       RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC controller successfully initialized");
 
-  }
-  
-  
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC controller successfully initialized");
+    }
 
- 
-  // Linearization controller
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC controller successfully initialized");
+
+
+    // Linearization controller
     try
     {
-         fblin_unicycle fblin_controller(p_dist_);
-         RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Linearization controller successfully initialized");
+     fblin_unicycle fblin_controller(p_dist_);
+     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Linearization controller successfully initialized");
 
-    }catch(const std::exception& e)
-    {
-        std::cerr<<"Exception raised"<<e.what()<<std::endl;
-    }  
-
-
+   }catch(const std::exception& e)
+   {
+    std::cerr<<"Exception raised"<<e.what()<<std::endl;
+   }  
 
 
-  }
+
+
+}
 
 void CustomController::timer_callback()
 {
@@ -275,8 +315,6 @@ void CustomController::timer_callback()
 
     RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
   }
-
-  tf_pub_->publish(received_tf_);
 
   point_vect_rotated_.clear();
 
@@ -735,7 +773,7 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
 const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
 {
 
-  double thresh = 1.3;
+  //double thresh = 1.3;
 
   int index=0;
 
@@ -752,7 +790,7 @@ const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter
     double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
     
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
-    if (distance < thresh)
+    if (distance < obstacle_distance_thresh_)
     {
        // obstacles.obstacles[index].polygon.points.clear();
 

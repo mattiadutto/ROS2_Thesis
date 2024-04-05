@@ -1,0 +1,187 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.8 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Found nav2_common: 1.1.13 (/opt/ros/humble/share/nav2_common/cmake)
+-- Found nav2_core: 1.1.13 (/opt/ros/humble/share/nav2_core/cmake)
+-- Found rosidl_generator_c: 3.1.5 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+-- Found rosidl_adapter: 3.1.5 (/opt/ros/humble/share/rosidl_adapter/cmake)
+-- Found rosidl_generator_cpp: 3.1.5 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 6.1.1 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 6.2.6 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+-- Found FastRTPS: /opt/ros/humble/include  
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found Eigen3: TRUE (found version "3.4.0") 
+-- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+-- Found costmap_converter: 0.1.2 (/home/mario/scout_working/install/costmap_converter/share/costmap_converter/cmake)
+-- Setting build type to Release as none was specified.
+-- Found ament_lint_auto: 0.12.10 (/opt/ros/humble/share/ament_lint_auto/cmake)
+-- Added test 'cppcheck' to perform static code analysis on C / C++ code
+-- Configured cppcheck include dirs: /home/mario/scout_working/src/nav2_custom_controller/include;/home/mario/scout_working/src/nav2_custom_controller/include/nav2_custom_controller
+-- Configured cppcheck exclude dirs and/or files: 
+-- Added test 'cpplint' to check C / C++ code against the Google style
+-- Configured cpplint exclude dirs and/or files: 
+-- Added test 'flake8' to check Python code syntax and style conventions
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+-- Added test 'uncrustify' to check C / C++ code style
+-- Configured uncrustify additional arguments: 
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/mario/scout_working/src/build/nav2_custom_controller
+[ 28%] [32mBuilding CXX object CMakeFiles/nav2_custom_controller.dir/src/feedback_lin.cpp.o[0m
+[ 28%] [32mBuilding CXX object CMakeFiles/nav2_custom_controller.dir/src/MPC_diffDrive_fblin.cpp.o[0m
+[ 42%] [32mBuilding CXX object CMakeFiles/nav2_custom_controller.dir/src/custom_controller.cpp.o[0m
+[ 57%] [32mBuilding CXX object CMakeFiles/nav2_custom_controller.dir/src/GUROBIsolver.cpp.o[0m
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::initProblem(int, const std::vector<double>&, const std::vector<double>&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:33:27:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kstd::vector<double>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} and ‘[01m[Kint[m[K’ [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+   33 |     if (([01;31m[KlowerBound.size()!=numVariable[m[K) || (upperBound.size()!=numVariable))
+      |          [01;31m[K~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:33:63:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kstd::vector<double>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} and ‘[01m[Kint[m[K’ [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+   33 |     if ((lowerBound.size()!=numVariable) || ([01;31m[KupperBound.size()!=numVariable[m[K))
+      |                                              [01;31m[K~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::setObjective(const MatrixXd&, const VectorXd&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:121:23:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[KEigen::Index[m[K’ {aka ‘[01m[Klong int[m[K’} and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  121 |     if ([01;31m[Khessian.rows()!=_variableVect.size()[m[K)
+      |         [01;31m[K~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:133:29:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  133 |         for (auto row=0; [01;31m[Krow<_variableVect.size()[m[K; row++) {
+      |                          [01;31m[K~~~^~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::addConstraint(const MatrixXd&, const VectorXd&, std::string, std::vector<GRBConstr>&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:182:18:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[KEigen::Index[m[K’ {aka ‘[01m[Klong int[m[K’} and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  182 |     if (([01;31m[KA.cols()!=_variableVect.size()[m[K) || (A.rows()!=b.rows()) || (b.cols()!=1))
+      |          [01;31m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::modifyConstraint(const MatrixXd&, const VectorXd&, std::vector<GRBConstr>&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:234:18:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[KEigen::Index[m[K’ {aka ‘[01m[Klong int[m[K’} and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  234 |     if (([01;31m[KA.cols()!=_variableVect.size()[m[K) || (A.rows()!=b.rows()) || (b.cols()!=1) || (A.rows()!=constraint.size()))
+      |          [01;31m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:234:95:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[KEigen::Index[m[K’ {aka ‘[01m[Klong int[m[K’} and ‘[01m[Kstd::vector<GRBConstr>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  234 |     if ((A.cols()!=_variableVect.size()) || (A.rows()!=b.rows()) || (b.cols()!=1) || ([01;31m[KA.rows()!=constraint.size()[m[K))
+      |                                                                                       [01;31m[K~~~~~~~~^~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:245:35:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBConstr>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  245 |         for (auto constr=0; [01;31m[Kconstr<constraint.size()[m[K; constr++) {
+      |                             [01;31m[K~~~~~~^~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:247:33:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  247 |             for (auto var=0; [01;31m[Kvar<_variableVect.size()[m[K; var++) {
+      |                              [01;31m[K~~~^~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::removeConstraint(std::vector<GRBConstr>&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:282:35:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBConstr>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  282 |         for (auto constr=0; [01;31m[Kconstr<constraint.size()[m[K; constr++) {
+      |                             [01;31m[K~~~~~~^~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::solveProblem(Eigen::VectorXd&, double&, int&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:316:33:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  316 |             for (auto var=0; [01;31m[Kvar<_variableVect.size()[m[K; var++) {
+      |                              [01;31m[K~~~^~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:325:33:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  325 |             for (auto var=0; [01;31m[Kvar<_variableVect.size()[m[K; var++) {
+      |                              [01;31m[K~~~^~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:337:33:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  337 |             for (auto var=0; [01;31m[Kvar<_variableVect.size()[m[K; var++) {
+      |                              [01;31m[K~~~^~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:[m[K In member function ‘[01m[Kbool GUROBIsolver::printConstraint(const std::vector<GRBConstr>&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:390:35:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBConstr>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  390 |         for (auto constr=0; [01;31m[Kconstr<constraint.size()[m[K; constr++) {
+      |                             [01;31m[K~~~~~~^~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/GUROBIsolver.cpp:394:33:[m[K [01;31m[Kerror: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<GRBVar>::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Werror=sign-compare]8;;[m[K]
+  394 |             for (auto var=0; [01;31m[Kvar<_variableVect.size()-1[m[K; var++) {
+      |                              [01;31m[K~~~^~~~~~~~~~~~~~~~~~~~~~~[m[K
+cc1plus: all warnings being treated as errors
+gmake[2]: *** [CMakeFiles/nav2_custom_controller.dir/build.make:118: CMakeFiles/nav2_custom_controller.dir/src/GUROBIsolver.cpp.o] Error 1
+gmake[2]: *** Waiting for unfinished jobs....
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:[m[K In member function ‘[01m[Kvirtual void nav2_custom_controller::CustomController::configure(const WeakPtr&, std::string, std::shared_ptr<tf2_ros::Buffer>, std::shared_ptr<nav2_costmap_2d::Costmap2DROS>)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:134:87:[m[K [01;31m[Kerror: [m[Kcall of overloaded ‘[01m[KParameterValue(<brace-enclosed initializer list>)[m[K’ is ambiguous
+  134 |       node, plugin_name_ + ".variable_upper_bound", rclcpp::ParameterValue({2.0,100.0}[01;31m[K)[m[K;
+      |                                                                                       [01;31m[K^[m[K
+In file included from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter.hpp:26[m[K,
+                 from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/node_options.hpp:25[m[K,
+                 from [01m[K/opt/ros/humble/include/rclcpp_lifecycle/rclcpp_lifecycle/lifecycle_node.hpp:65[m[K,
+                 from [01m[K/opt/ros/humble/include/nav2_costmap_2d/costmap_2d_publisher.hpp:46[m[K,
+                 from [01m[K/opt/ros/humble/include/nav2_costmap_2d/costmap_2d_ros.hpp:48[m[K,
+                 from [01m[K/opt/ros/humble/include/nav2_core/controller.hpp:42[m[K,
+                 from [01m[K/home/mario/scout_working/src/nav2_custom_controller/include/nav2_custom_controller/custom_controller.hpp:14[m[K,
+                 from [01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:1[m[K:
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:118:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<double, std::allocator<double> >&)[m[K’
+  118 |   explicit [01;36m[KParameterValue[m[K(const std::vector<double> & double_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:115:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<float>&)[m[K’
+  115 |   explicit [01;36m[KParameterValue[m[K(const std::vector<float> & double_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:112:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<long int, std::allocator<long int> >&)[m[K’
+  112 |   explicit [01;36m[KParameterValue[m[K(const std::vector<int64_t> & int_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:109:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<int>&)[m[K’
+  109 |   explicit [01;36m[KParameterValue[m[K(const std::vector<int> & int_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:106:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<bool, std::allocator<bool> >&)[m[K’
+  106 |   explicit [01;36m[KParameterValue[m[K(const std::vector<bool> & bool_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:103:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<unsigned char, std::allocator<unsigned char> >&)[m[K’
+  103 |   explicit [01;36m[KParameterValue[m[K(const std::vector<uint8_t> & byte_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:97:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const string&)[m[K’
+   97 |   explicit [01;36m[KParameterValue[m[K(const std::string & string_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:137:88:[m[K [01;31m[Kerror: [m[Kcall of overloaded ‘[01m[KParameterValue(<brace-enclosed initializer list>)[m[K’ is ambiguous
+  137 |       node, plugin_name_ + ".variable_lower_bound", rclcpp::ParameterValue({2.0,-100.0}[01;31m[K)[m[K;
+      |                                                                                        [01;31m[K^[m[K
+In file included from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter.hpp:26[m[K,
+                 from [01m[K/opt/ros/humble/include/rclcpp/rclcpp/node_options.hpp:25[m[K,
+                 from [01m[K/opt/ros/humble/include/rclcpp_lifecycle/rclcpp_lifecycle/lifecycle_node.hpp:65[m[K,
+                 from [01m[K/opt/ros/humble/include/nav2_costmap_2d/costmap_2d_publisher.hpp:46[m[K,
+                 from [01m[K/opt/ros/humble/include/nav2_costmap_2d/costmap_2d_ros.hpp:48[m[K,
+                 from [01m[K/opt/ros/humble/include/nav2_core/controller.hpp:42[m[K,
+                 from [01m[K/home/mario/scout_working/src/nav2_custom_controller/include/nav2_custom_controller/custom_controller.hpp:14[m[K,
+                 from [01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:1[m[K:
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:118:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<double, std::allocator<double> >&)[m[K’
+  118 |   explicit [01;36m[KParameterValue[m[K(const std::vector<double> & double_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:115:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<float>&)[m[K’
+  115 |   explicit [01;36m[KParameterValue[m[K(const std::vector<float> & double_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:112:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<long int, std::allocator<long int> >&)[m[K’
+  112 |   explicit [01;36m[KParameterValue[m[K(const std::vector<int64_t> & int_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:109:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<int>&)[m[K’
+  109 |   explicit [01;36m[KParameterValue[m[K(const std::vector<int> & int_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:106:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<bool, std::allocator<bool> >&)[m[K’
+  106 |   explicit [01;36m[KParameterValue[m[K(const std::vector<bool> & bool_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:103:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const std::vector<unsigned char, std::allocator<unsigned char> >&)[m[K’
+  103 |   explicit [01;36m[KParameterValue[m[K(const std::vector<uint8_t> & byte_array_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/humble/include/rclcpp/rclcpp/parameter_value.hpp:97:12:[m[K [01;36m[Knote: [m[Kcandidate: ‘[01m[Krclcpp::ParameterValue::ParameterValue(const string&)[m[K’
+   97 |   explicit [01;36m[KParameterValue[m[K(const std::string & string_value);
+      |            [01;36m[K^~~~~~~~~~~~~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:[m[K In member function ‘[01m[Kvoid nav2_custom_controller::CustomController::timer_callback()[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:455:7:[m[K [01;31m[Kerror: [m[Kunused variable ‘[01m[Knum[m[K’ [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wunused-variable-Werror=unused-variable]8;;[m[K]
+  455 |   int [01;31m[Knum[m[K = 0;
+      |       [01;31m[K^~~[m[K
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:[m[K In member function ‘[01m[Kvoid nav2_custom_controller::CustomController::calcLineEquation(const Point32&, const Point32&, const PoseStamped&, const Point32&, std::vector<std::vector<float> >&, std::vector<std::vector<float> >&)[m[K’:
+[01m[K/home/mario/scout_working/src/nav2_custom_controller/src/custom_controller.cpp:867:159:[m[K [01;31m[Kerror: [m[Kunused parameter ‘[01m[Kpose[m[K’ [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wunused-parameter-Werror=unused-parameter]8;;[m[K]
+  867 | n(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,[01;31m[Kconst geometry_msgs::msg::PoseStamped  &pose[m[K,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
+      |                                                                                 [01;31m[K~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~[m[K
+
+cc1plus: all warnings being treated as errors
+gmake[2]: *** [CMakeFiles/nav2_custom_controller.dir/build.make:76: CMakeFiles/nav2_custom_controller.dir/src/custom_controller.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:137: CMakeFiles/nav2_custom_controller.dir/all] Error 2
+gmake: *** [Makefile:146: all] Error 2
