@@ -111,6 +111,11 @@ class CustomController : public nav2_core::Controller
     bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
     void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
     void compute_most_violated_constraints();
+
+
+    // 
+
+    void MPC();
     
 
 
@@ -210,6 +215,12 @@ class CustomController : public nav2_core::Controller
 
     std::vector<double> lb_;
     std::vector<double> ub_;
+
+
+
+    
+
+
 };
 } // namespace nav2_custom_controller
 

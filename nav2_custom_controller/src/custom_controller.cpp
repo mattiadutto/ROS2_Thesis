@@ -75,6 +75,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     lb_.push_back(0.0);
 
 
+   
 }
 
 
@@ -301,6 +302,10 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
    {
     std::cerr<<"Exception raised"<<e.what()<<std::endl;
    }  
+
+
+   MPC();
+
 
 
 
@@ -1047,8 +1052,8 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
 {
 
-
 /*
+
   static auto start_time_MPC = std::chrono::high_resolution_clock::now();
 
     // Convert to system_clock time point (for human-readable output)
@@ -1080,7 +1085,7 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   tf2::fromMsg(pose.pose.orientation, quat);
   tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-    std::cout<< "yaw =  "<<yaw<<std::endl;
+  //std::cout<< "yaw =  "<<yaw<<std::endl;
 
 
   MPC_->set_actualRobotState(Eigen::Vector3d(pose.pose.position.x,pose.pose.position.y, yaw));
@@ -1114,8 +1119,11 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
 
 //  std::cout<< "yaw2 =  "<<yaw2<<std::endl;
 
-//MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,0));
-MPC_->set_referenceRobotState(Eigen::Vector3d(1, 0.5,yaw));
+
+
+//MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,45));
+
+MPC_->set_referenceRobotState(Eigen::Vector3d(1, 0.0,0));
 
 
 
@@ -1191,13 +1199,13 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
 
 
-// std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
-//std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
+ std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
+std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
   
 
 
-*/
 
+*/
 
 
 
@@ -1281,6 +1289,28 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
 {
 
   global_plan_ = path;
+
+
+
+
+
+
+}
+
+void CustomController::MPC()
+{
+
+    double stop = 10.0; // Stop time in seconds
+    double step = 0.001;  // Time step in seconds
+
+    // Do simulation
+    for (double time = 0.0; time < stop; time += step) {
+        // Perform simulation operations here
+        // This loop will execute until the stop time is reached
+        
+        // For demonstration, let's print the current time
+        std::cout << "Current time: " << time << " seconds" << std::endl;
+    }
 
 }
 

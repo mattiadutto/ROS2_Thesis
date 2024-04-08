@@ -17,11 +17,12 @@ def generate_launch_description():
     inverted = LaunchConfiguration('inverted', default='false')
     angle_compensate = LaunchConfiguration('angle_compensate', default='true')
     scan_mode = LaunchConfiguration('scan_mode', default='Sensitivity')
+    reference_link = LaunchConfiguration('reference_link', default='base_link') 
 
     rviz_config_dir = os.path.join(
             get_package_share_directory('rplidar_ros2'),
             'rviz',
-            'rplidar_ros2.rviz')
+            'rplidar_slam_scout_mini_ros2.rviz')
 
     return LaunchDescription([
 
@@ -54,6 +55,15 @@ def generate_launch_description():
             'scan_mode',
             default_value=scan_mode,
             description='Specifying scan mode of lidar'),
+
+        DeclareLaunchArgument(
+            'reference_link',
+            default_value=reference_link,
+            description='Specifying the reference link of lidar'),
+
+        Node(package = "tf2_ros", 
+            executable = "static_transform_publisher",
+            arguments = ["0","0","0","0","0","0", reference_link, "laser"]),
 
         Node(
             package='rplidar_ros2',

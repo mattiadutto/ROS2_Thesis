@@ -66,6 +66,8 @@ The command for RPLIDAR A3 is :
 ros2 launch rplidar_ros2 view_rplidar_a3_launch.py
 ```
 
+You have one optional parameter that is the <b>reference_frame</b> for set up the reference frame in the transform between the rplidar link and the reference frace it self. By default is set to <b>base_link</b>. The same parameter is set up in the <b>rplidar_a3_launch.py</b> file.
+
 The command for RPLIDAR S1 is : 
 
 ```bash
