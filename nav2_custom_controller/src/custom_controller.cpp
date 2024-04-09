@@ -1289,7 +1289,7 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
 {
 
   global_plan_ = path;
-
+//
 
 
 
