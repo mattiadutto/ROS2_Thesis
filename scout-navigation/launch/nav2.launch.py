@@ -21,7 +21,7 @@ def generate_launch_description():
 
     # Arguments and parameters
     use_sim_time = LaunchConfiguration("use_sim_time", default="true")
-    map_name = LaunchConfiguration("map_name", default="my_map.yaml")
+    map_name = LaunchConfiguration("map_name", default="mario_initial.yaml")
 
     declare_use_sim_time_arg = DeclareLaunchArgument(
         "use_sim_time",
