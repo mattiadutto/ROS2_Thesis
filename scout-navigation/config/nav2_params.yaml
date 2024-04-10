@@ -451,7 +451,7 @@ amcl:
 map_server:
   ros__parameters:
     use_sim_time: True
-    yaml_filename: "workshop.yaml"
+    yaml_filename: "my_map.yaml"
     topic_name: /namespace/map
     frame_id: map
 

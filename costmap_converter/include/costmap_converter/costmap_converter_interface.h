@@ -47,8 +47,8 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 //#include "nav2_costmap_2d/costmap_2d.hpp"
-#include "/home/garabetov/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d_ros.hpp"
-#include "/home/garabetov/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d.hpp"
+#include "/home/mario/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d_ros.hpp"
+#include "/home/mario/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d.hpp"
 //#include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
 #include <geometry_msgs/msg/polygon.hpp>
