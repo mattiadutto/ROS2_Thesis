@@ -304,11 +304,11 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
    }  
 
 
-   MPC();
+   //MPC();
 
 
 
-
+RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Custom Controller is activated!");
 
 }
 
@@ -1217,7 +1217,7 @@ std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
 
 
 
-
+/*
 
   double epsilon_ = 0.15;
 
@@ -1279,7 +1279,13 @@ std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
  // std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
  // std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
 
-
+*/
+//static bool called = false;
+//if (called == false)
+//{
+  MPC();
+//  called = true;
+//}
 
   return cmd_vel_;
 }
@@ -1289,6 +1295,7 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
 {
 
   global_plan_ = path;
+ // MPC();
 
 
 
@@ -1300,19 +1307,62 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
 void CustomController::MPC()
 {
 
-    double stop = 10.0; // Stop time in seconds
-    double step = 0.001;  // Time step in seconds
 
-    // Do simulation
-    for (double time = 0.0; time < stop; time += step) {
-        // Perform simulation operations here
-        // This loop will execute until the stop time is reached
-        
+  
+    auto start = std::chrono::high_resolution_clock::now();
+    auto end = start + std::chrono::seconds(10); // End time
+
+    double time = 0.0; // Initialize time variable
+
+    while (std::chrono::high_resolution_clock::now() < end) {
+        auto start_time_MPC = std::chrono::high_resolution_clock::now();
+
+        // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
+        double roll, pitch, yaw;
+        tf2::Quaternion quat;
+        tf2::fromMsg(robot_pose_.pose.orientation, quat);
+        tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+
+        MPC_->set_actualRobotState(Eigen::Vector3d(robot_pose_.pose.position.x,robot_pose_.pose.position.y, yaw));
+        MPC_->set_referenceRobotState(Eigen::Vector3d(1, 0.0, 0));
+
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_MPC).count() >= 200) // execute the MPC every 0.2 seconds
+        {
+            std::cout << "MPC executed after 0.2 seconds" << std::endl;
+
+            // compute MPC control and optimisation to obtain optimal control inputs
+            // xp dot and yp dot to be used by the feedback linearisation to get v and w
+            // MPC_->executeMPCcontroller();
+
+            // Eigen::VectorXd MPC_actControl;
+            // get xp dot and yp dot that are computed by the MPC
+            // MPC_->get_actualMPCControl(MPC_actControl);
+            // vPx_act = MPC_actControl(0);
+            // vPy_act = MPC_actControl(1);
+        }
+
         // For demonstration, let's print the current time
-        std::cout << "Current time: " << time << " seconds" << std::endl;
+       // std::cout << "Current time: " << time << " seconds" << std::endl;
+
+        // Calculate the time taken by the loop iteration
+       // auto iteration_time = std::chrono::high_resolution_clock::now() - start_time_MPC;
+
+        // Calculate the remaining time until the end of the loop
+        //auto remaining_time = end - std::chrono::high_resolution_clock::now();
+
+        // Sleep for the remaining time if necessary
+        //if (remaining_time > iteration_time) {
+        //    std::this_thread::sleep_for(remaining_time - iteration_time);
+        //}
+
+        // Update time
+        time = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
     }
 
+    std::cout << "MPC function executed for exactly 10 seconds" << std::endl;
+    
 }
+
 
 void CustomController::setSpeedLimit(const double & , const bool & )
 {
