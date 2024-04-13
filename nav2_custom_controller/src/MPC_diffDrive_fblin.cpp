@@ -179,7 +179,7 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         return false;
     }
 
-    std::cout<<"execute mpc controller function called"<<std::endl;
+   //std::cout<<"execute mpc controller function called"<<std::endl;
 
 
 
@@ -194,7 +194,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
 // this for loop will make the predictions for the x y theta states based on the given
 // prediction horizon and store them in predictRobotState
 // considering N = 3 therefore  this loop will execute 2 times to compute the states at time k+1 k+2 ahead
-    for (auto k=0; k<_N; k++) {
+    for (auto k=0; k<_N; k++)
+     {
 
         // increment i up to 20 if MPC_Ts/fblin_Ts = 0.2/0.01 = 20 
         // this for loop will execute 20 times with the same k value (since Ts of MPC is 20times more than fblin)
@@ -213,6 +214,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
 
             // Compute the next robot state for the current k
 
+          //  std::cout<<"v from execute mpc: "<<v<<std::endl;
+
             // here are the kinematic equations in discrete time to get x,y,theta from the velocities
             
             act_x += v*_fblin_Ts*std::cos(act_theta+w*_fblin_Ts/2.0);
@@ -225,7 +228,7 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
                                              // at k = 1 it will be  in positions 6 7 8
                                             // at k = 2 (last one if N =3) in positions 9 10 11 (as predictRobot state has 11 positions )
        
-        std::cout<<"_predictRobotState: "<<act_x<<std::endl;
+       // std::cout<<"_predictRobotState: "<<act_x<<std::endl;
         _predictRobotState(3*(k+1)+1) = act_y;
         _predictRobotState(3*(k+1)+2) = act_theta;
     }
@@ -279,8 +282,15 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
 
 if (_optimVect.size() != 0)
 { 
-    std::cout<<" optimVect"<<_optimVect[0]<<std::endl;
+   // std::cout<<" optimVect[0]"<<_optimVect(0)<<std::endl;
+    //std::cout<<" optimVect[1]"<<_optimVect(1)<<std::endl;
+
 }
+
+// Write the results
+    std::cout << "Solution: [" << _optimVect(0) << ", " << _optimVect(1) << ", " << _optimVect(2) << "]" << std::endl;
+    std::cout << "Objective: " << objectiveValue << std::endl;
+    std::cout << "Status: " << optimizerStatus << std::endl << std::endl;
 
     return true;
 }
@@ -297,7 +307,7 @@ bool MPC_diffDrive_fblin::executeLinearizationController() {
     // sets the current x y and theta of the robot and save them as x y theta for the feedback lin class
     _fblinController->set_unicycleState(_actRobotState(0), _actRobotState(1), _actRobotState(2));
 
-    std::cout<<"actRobotState(2) = "<<_actRobotState(2)<<std::endl;
+  //  std::cout<<"actRobotState(0) = "<<_actRobotState(0)<<std::endl;
 
     // Execute the feedback linearization law
     // this should obtain v and w from xp dot and yp_dot
@@ -328,6 +338,9 @@ void MPC_diffDrive_fblin::set_actualRobotState(const Eigen::VectorXd& actRobotSt
         // actMPCstate will contain current xp and yp computed from current x and y by feedback lin
         _fblinController->ouput_transformation(_actMPCstate(0), _actMPCstate(1));
 
+     //  std::cout<<"current xp = "<<_actRobotState(0)<<std::endl;
+
+
     }
 }
 
@@ -347,9 +360,12 @@ void MPC_diffDrive_fblin::set_referenceRobotState(const Eigen::VectorXd& refRobo
         // refRobotState is coming from the given path
         _fblinController->reference_transformation(_refRobotState(0), _refRobotState(1),
                                                    _refRobotState(2), _refMPCstate(0), _refMPCstate(1));
+
+      //  std::cout<<"Xp ref: "<<_refMPCstate(0)<<std::endl;
+      //  std::cout<<"Yp ref: "<<_refMPCstate(1)<<std::endl;
+
     }
 }
-
 void MPC_diffDrive_fblin::get_actualMPCControl(Eigen::VectorXd& control)
 {
     control = _optimVect.head(2);
@@ -437,6 +453,12 @@ void MPC_diffDrive_fblin::compute_objectiveMatrix() {
     Eigen::VectorXd _refStateVect = Eigen::VectorXd::Zero(2*(_N+1));
     for (auto i=0; i<_N+1; i++) {
         _refStateVect.block(i*2, 0, 2, 1) = _refMPCstate;
+    }
+
+     for (int i=0; i<_actMPCstate.size();i++)
+    {
+
+        std::cout<<"actMPCstate: "<<_actMPCstate[i]<<std::endl;
     }
 
     // Compute H and f matrices
