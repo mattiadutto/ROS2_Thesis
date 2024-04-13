@@ -36,7 +36,7 @@ include_directories(
   include
   include/nav2_custom_controller
  # /home/garabetov/Gurobi/gurobi1100/linux64/include
-  ${GUROBI_LIB_DIR}/include
+ ${GUROBI_LIB_DIR}/include
 )
 
 set(dependencies
@@ -81,7 +81,7 @@ add_library(nav2_custom_controller SHARED ${SOURCES})
 #        src/GUROBIsolver.cpp
 #        )
 
-target_link_libraries(nav2_custom_controller /home/mario/Gurobi/gurobi1100/linux64/lib/libgurobi110.so)
+target_link_libraries(nav2_custom_controller ${GUROBI_LIB_DIR}/libgurobi110.so)
 
 #target_link_libraries(nav2_custom_controller
  #   ${CMAKE_DL_LIBS} # This is often necessary for Gurobi

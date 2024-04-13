@@ -148,8 +148,7 @@ class CustomController : public nav2_core::Controller
     nav_msgs::msg::Path centroid_path_msg_;
     geometry_msgs::msg::PoseStamped target_pose_;
     geometry_msgs::msg::Twist cmd_vel_;
-        geometry_msgs::msg::TwistStamped cmd_vel;
-
+    geometry_msgs::msg::TwistStamped cmd_vel;
 
     pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
@@ -215,6 +214,8 @@ class CustomController : public nav2_core::Controller
     double wMin_;
     double R_;
     double d_;
+
+
 
     std::vector<double> lb_;
     std::vector<double> ub_;

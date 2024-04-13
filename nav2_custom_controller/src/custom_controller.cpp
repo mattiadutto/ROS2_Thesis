@@ -47,7 +47,8 @@ template <typename Iter, typename Getter>
     return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
   };
 
-
+// uncomment when using MPC
+  
 CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),MPC_(std::make_unique<MPC_diffDrive_fblin>())
 { 
 
@@ -77,6 +78,40 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
    
 }
+/*
+CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons")
+{ 
+
+    A_obst_matrix_.push_back({0.0,0.0});
+    b_vect_.push_back({0.0});
+    A_most_violated_matrix_.push_back({0.0,0.0});
+    b_most_violated_vect_.push_back({0.0});
+
+    // define a safe zone around the robot's footprint
+    robot_footprint_.resize(4);
+
+    robot_footprint_[0].x = 0.4; 
+    robot_footprint_[0].y = 0.3; 
+    robot_footprint_[1].x = 0.4;
+    robot_footprint_[1].y = -0.3;
+    robot_footprint_[2].x = -0.4;
+    robot_footprint_[2].y = 0.3;
+    robot_footprint_[3].x = -0.4;
+    robot_footprint_[3].y = -0.3;
+
+    ub_.push_back(0.0);
+    ub_.push_back(0.0);
+
+    lb_.push_back(0.0);
+    lb_.push_back(0.0);
+
+
+}
+*/
+
+
+
+
 
 
  void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
@@ -232,7 +267,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     point_marker_pub_ = node ->create_publisher<visualization_msgs::msg::Marker>("point_marker",10);
 
-    cmd_vel_pub_ = node ->create_publisher<geometry_msgs::msg::Twist>("/scout_mini/cmd_vel",10);
+    cmd_vel_pub_ = node ->create_publisher<geometry_msgs::msg::Twist>("cmd_vel",10);
 
 
     // Create a lifecycle wall timer with a callback function
@@ -306,11 +341,11 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
    }  
 
 
-   //MPC();
+  // MPC();
 
 
 
-RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Custom Controller is activated!");
+
 
 }
 
@@ -1007,6 +1042,7 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
       }
     }
 
+
     // publish on 2 different topic depending on the passed parameter
      if (print_convex_region == false)
      {
@@ -1125,24 +1161,13 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
 
 //MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,45));
 
-MPC_->set_referenceRobotState(Eigen::Vector3d(1.0, 0.0,0));
+MPC_->set_referenceRobotState(Eigen::Vector3d(0.0, 1.0,0));
 
 
 
 if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_MPC).count() >= 200) // execute the MPC every 0.2 seconds
  {
 
-    // Get the current time point
-    //auto end_time = std::chrono::high_resolution_clock::now();
-    
-    // Convert to system_clock time point (for human-readable output)
-   // auto end_time_s = std::chrono::system_clock::to_time_t(end_time);
-    
-    // Print the end time in a human-readable format
-  //  std::cout << "End time: " << std::ctime(&end_time_s) << std::endl;
-
-  
- // std::cout<<"MPC executed after 3 seconds"<<std::endl;
 
   double vPx_act, vPy_act;
 
@@ -1165,17 +1190,6 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_lin).count() >= 10) // execute the FBLIN every 0.01 seconds
 {
 
- // std::cout<<"Linearization executed after 0.01 seconds"<<std::endl;
-
-
-    // Get the current time point
-   // auto end_time = std::chrono::high_resolution_clock::now();
-    
-    // Convert to system_clock time point (for human-readable output)
-   // auto end_time_s = std::chrono::system_clock::to_time_t(end_time);
-    
-    // Print the end time in a human-readable format
-  //  std::cout << "End time linearization: " << std::ctime(&end_time_s) << std::endl;
 
   MPC_->executeLinearizationController();
 
@@ -1193,14 +1207,15 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
 
   // Apply feedback linearization
-  cmd_vel_.linear.x = v_act;
-  cmd_vel_.angular.z = w_act;
+  cmd_vel.twist.linear.x = -w_act;
+  //cmd_vel.twist.angular.z = w_act;
+
+  std::cout<<"w_act"<<w_act<<std::endl;
+  std::cout<<"v_act"<<v_act<<std::endl;
 
 
-      cmd_vel_pub_->publish(cmd_vel_);
-
-  //cmd_vel_.header.frame_id = pose.header.frame_id;
-  //cmd_vel_.header.stamp = clock_->now();
+  cmd_vel.header.frame_id = pose.header.frame_id;
+  cmd_vel.header.stamp = clock_->now();
 
 
 
@@ -1208,10 +1223,10 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 //std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
   
 
-
-
-
 */
+
+
+
 
 
 //////// Feedback linearization only
@@ -1220,9 +1235,9 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
 
 
 
-
-
 /*
+
+
 
   double epsilon_ = 0.15;
 
@@ -1272,29 +1287,45 @@ if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_reso
   feedback_lin_.calcPointP(pose, yaw, epsilon_);
 
   // Apply proportional control for trajectory tracking without feed forward term
-  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 2.5;
-  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 1.5;
+  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 1; // was 2.5 before
+  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 0.5; // was 1.5 before
  
   // Apply feedback linearization
   cmd_vel_ = feedback_lin_.linearize(xp_dot_, yp_dot_);
 
+  if (cmd_vel_.twist.angular.z > 0.1 )
+   {
+      cmd_vel_.twist.angular.z == 0.1;
+
+   }
+   else if (cmd_vel_.twist.angular.z < -0.1)
+   {
+    cmd_vel_.twist.angular.z == -0.1;
+   }
+
+   if (cmd_vel_.twist.linear.x > 0.3)
+   {
+    cmd_vel_.twist.linear.x == 0.3;
+   }
+   else if (cmd_vel_.twist.linear.x < -0.3)
+   {
+    cmd_vel_.twist.linear.x == -0.3;
+   }
+
+    
+
+
   cmd_vel_.header.frame_id = pose.header.frame_id;
   cmd_vel_.header.stamp = clock_->now();
 
- // std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
- // std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
+  std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
+  std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
+
 
 */
 
-
-
-MPC();
-
- // return cmd_vel_;
-cmd_vel.twist.linear.x = cmd_vel_.linear.x;
-cmd_vel.twist.angular.z = cmd_vel_.angular.z;
-
- return cmd_vel;
+ MPC();
+  return cmd_vel;
 }
 
 
@@ -1302,7 +1333,6 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
 {
 
   global_plan_ = path;
- // MPC();
 
 
 
@@ -1388,6 +1418,9 @@ void CustomController::MPC()
   // Apply feedback linearization
      cmd_vel_.linear.x = v_act;
      cmd_vel_.angular.z = w_act;
+
+   //  std::cout<<"w_act"<<w_act<<std::endl;
+//  std::cout<<"v_act"<<v_act<<std::endl;
 
      // cmd_vel_.header.frame_id = robot_pose_.header.frame_id;
       //cmd_vel_.header.stamp = clock_->now();
