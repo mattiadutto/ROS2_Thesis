@@ -179,7 +179,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         return false;
     }
 
-   //std::cout<<"execute mpc controller function called"<<std::endl;
+
+   std::cout<<"execute mpc controller function called"<<std::endl;
 
 
 
@@ -346,6 +347,7 @@ void MPC_diffDrive_fblin::set_actualRobotState(const Eigen::VectorXd& actRobotSt
 
 void MPC_diffDrive_fblin::set_referenceRobotState(const Eigen::VectorXd& refRobotState)
 {
+
     if (refRobotState.size()!=3)
     {
         std::cout << "[MPC_diffDrive_fblin.set_referenceRobotState] The refState variable has the wrong size" << std::endl;
@@ -455,15 +457,35 @@ void MPC_diffDrive_fblin::compute_objectiveMatrix() {
         _refStateVect.block(i*2, 0, 2, 1) = _refMPCstate;
     }
 
-     for (int i=0; i<_actMPCstate.size();i++)
-    {
+            std::cout<<"actMPCstate: "<<_actMPCstate[0]<<std::endl;
 
-        std::cout<<"actMPCstate: "<<_actMPCstate[i]<<std::endl;
-    }
 
     // Compute H and f matrices
     _H = _Bcal.transpose()*_Qcal*_Bcal+_Rcal;
     _f = (_Acal*_actMPCstate-_refStateVect).transpose()*_Qcal*_Bcal;
+
+        if (_actMPCstate[0] > 0.8 && _actMPCstate[0] < 0.9)
+    {
+    std::cout<<"f vector current value"<<_f<<std::endl<<std::endl;
+    saveMatrixToFile("f_>0.8_<0.9.csv", _f);
+
+}
+
+
+    if (_actMPCstate[0] > 0.98 && _actMPCstate[0] < 1)
+    {
+    std::cout<<"f vector current value"<<_f<<std::endl<<std::endl;
+            saveMatrixToFile("f_>0.98_<1.csv", _f);
+
+}
+
+
+    if (_actMPCstate[0] >1 && _actMPCstate[0] < 1.04)
+    {
+    std::cout<<"f vector current value"<<_f<<std::endl<<std::endl;
+        saveMatrixToFile("f_>1_<1.04.csv", _f);
+
+}
 
     // Check matrix
     saveMatrixToFile("H_matrix.csv", _H);

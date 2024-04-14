@@ -150,7 +150,7 @@ class CustomController : public nav2_core::Controller
     geometry_msgs::msg::Twist cmd_vel_;
     geometry_msgs::msg::TwistStamped cmd_vel;
 
-    pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
+   pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
     rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
@@ -158,6 +158,9 @@ class CustomController : public nav2_core::Controller
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr point_marker_pub_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_pub_;
+
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::TimerBase::SharedPtr wall_timer_;
@@ -196,7 +199,8 @@ class CustomController : public nav2_core::Controller
 
     // MPC part 
 
-    std::unique_ptr<MPC_diffDrive_fblin> MPC_;
+   // std::unique_ptr<MPC_diffDrive_fblin> MPC_;
+    MPC_diffDrive_fblin MPC_;
 
     // MPC parameters
     int N_;
