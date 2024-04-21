@@ -106,12 +106,18 @@ class CustomController : public nav2_core::Controller
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
+    void cmd_vel_sub_callback(const geometry_msgs::msg::Twist &cmd_vel_received);
+
     void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
     bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
     void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
     void compute_most_violated_constraints();
 
+
+    void execute_fblin();
+    void execute_MPC_node();
+   // void execute_MPC();
 
     // 
 
@@ -160,12 +166,16 @@ class CustomController : public nav2_core::Controller
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_pub_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
 
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::TimerBase::SharedPtr wall_timer_;
 
     geometry_msgs::msg::TransformStamped received_tf_;
+
+    geometry_msgs::msg::PoseStamped send_pose_;
+
 
     double obstacle_distance_thresh_;
 

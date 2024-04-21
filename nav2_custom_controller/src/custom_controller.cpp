@@ -273,20 +273,24 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     point_marker_pub_ = node ->create_publisher<visualization_msgs::msg::Marker>("point_marker",10);
 
-    cmd_vel_pub_ = node ->create_publisher<geometry_msgs::msg::Twist>("cmd_vel",10);
+    cmd_vel_pub_ = node ->create_publisher<geometry_msgs::msg::Twist>("/scout_mini/cmd_vel",10);
 
-    pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("pose",10);
+    pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("/scout_mini/pose",10);
 
-    ref_pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("reference_pose",10);
+    ref_pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("/scout_mini/reference_pose",10);
 
 
 
     // Create a lifecycle wall timer with a callback function
 
     //call timer_callback() every 1 second 
-    wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
+
+
+    //wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
 
     pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/scout_mini/amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
+
+    cmd_vel_sub_ = node->create_subscription<geometry_msgs::msg::Twist>("/scout_mini/cmd_vel_from_node",100,std::bind(&CustomController::cmd_vel_sub_callback, this,std::placeholders::_1));
 
     ////////////////////////////////////////////////
 
@@ -357,22 +361,22 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
   // MPC();
 
 
-       MPC_.set_actualRobotState(Eigen::Vector3d(1.0, 0, 0));
+   //    MPC_.set_actualRobotState(Eigen::Vector3d(1.0, 0, 0));
 
 
-       MPC_.set_referenceRobotState(Eigen::Vector3d(1.0, 0.0, 0));
-
-
-
-       MPC_.executeLinearizationController();
+    //   MPC_.set_referenceRobotState(Eigen::Vector3d(1.0, 0.0, 0));
 
 
 
+   //    MPC_.executeLinearizationController();
 
 
-       MPC_.set_actualRobotState(Eigen::Vector3d(1.0, 0, 0));
 
-       MPC_.executeMPCcontroller();
+
+
+  //     MPC_.set_actualRobotState(Eigen::Vector3d(1.0, 0, 0));
+
+   //    MPC_.executeMPCcontroller();
 
 
 
@@ -1107,6 +1111,14 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 }
 
 
+void CustomController::cmd_vel_sub_callback(const geometry_msgs::msg::Twist &cmd_vel_received)
+{
+  cmd_vel.twist.linear.x = cmd_vel_received.linear.x;
+  cmd_vel.twist.angular.z = cmd_vel_received.angular.z;
+}
+
+
+
 
 
 void CustomController::cleanup()
@@ -1128,31 +1140,127 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
 {
 
-  pose_pub_->publish(pose);
 
 
-  // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
+// NB! the yaw from robot_pose_ always produces 0 value and the pose is coming from amcl_pose topic
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+    // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
   double roll, pitch, yaw;
   tf2::Quaternion quat;
   tf2::fromMsg(pose.pose.orientation, quat);
   tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-  //std::cout<< "yaw =  "<<yaw<<std::endl;
+
+  send_pose_.pose.position.x = pose.pose.position.x;
+  send_pose_.pose.position.y = pose.pose.position.y;
+  send_pose_.pose.position.z = yaw; // position.z contains the converted yaw
+
+ // std::cout<<"current x: "<<send_pose_.pose.position.x<<std::endl;
 
 
-// this yaw from robot_pose_ always produces 0 value and the pose is coming from amcl_pose topic
+   // Find the closest pose on the path to the robot
+  auto transformation_begin =
+  min_by(
+    global_plan_.poses.begin(), global_plan_.poses.end(),
+          //&pose is current robot pose, ps is the other pose to go in euclidean_distance
+    [&pose](const geometry_msgs::msg::PoseStamped &ps)
+    {
+      return euclidean_distance(pose, ps);
+    });
 
-  /*
+  // From the closest point, look for the first point that's 0.4m away
+  auto transformation_end = std::find_if(
+    transformation_begin, end(global_plan_.poses),
+    [&](const auto &global_plan_pose)
+    {
+      return euclidean_distance(pose, global_plan_pose) > 0.4; 
+    });
 
-  double roll2, pitch2, yaw2;
-  tf2::Quaternion quat2;
-  tf2::fromMsg(robot_pose_.pose.orientation, quat2);
-  tf2::Matrix3x3(quat2).getRPY(roll2, pitch2, yaw2);
+  // assign each consecutive goal pose 0.4m away from the previous
+  auto target_pose_ = *transformation_end;
 
-  std::cout<< "yaw from robot_pose_ =  "<<yaw2<<std::endl;
+  // overwrite target_pose_ to be at [2,-1]
 
-*/
+ // target_pose_.pose.position.x = 1;
+ // target_pose_.pose.position.y = -1;
 
+  ref_pose_pub_ -> publish(target_pose_);
+
+
+
+/////////////////////////////////////////////////////////////////////////
+
+
+  execute_MPC_node();
+
+ // execute_fblin();
+
+/////////////////////// fblin only//////////////////////////////
+/*
+
+ double epsilon_ = 0.15;
+
+  // Record the start time
+ // auto start_time = std::chrono::high_resolution_clock::now();
+
+
+  // Record the end time
+ // auto end_time = std::chrono::high_resolution_clock::now();
+
+  // Calculate the duration
+ // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+  // Print the execution time
+ // std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
+
+  //  std::cout<<"current x: "<<send_pose_.pose.position.x<<std::endl;
+
+
+  // calculate point P at a distance epsilon from the robot
+  feedback_lin_.calcPointP(send_pose_, send_pose_.pose.position.z, epsilon_);  // send_pose_.z is the converted yaw!
+
+//  std::cout<<"target x: "<<target_pose_.pose.position.x<<std::endl;
+
+
+  // Apply proportional control for trajectory tracking without feed forward term
+  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 1; // was 2.5 before
+  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 0.5; // was 1.5 before
+ 
+  // Apply feedback linearization
+  cmd_vel = feedback_lin_.linearize(xp_dot_, yp_dot_);
+
+  if (cmd_vel.twist.angular.z > 0.1 )
+   {
+      cmd_vel.twist.angular.z == 0.1;
+
+   }
+   else if (cmd_vel.twist.angular.z < -0.1)
+   {
+    cmd_vel.twist.angular.z == -0.1;
+   }
+
+   if (cmd_vel.twist.linear.x > 0.3)
+   {
+    cmd_vel.twist.linear.x == 0.3;
+   }
+   else if (cmd_vel.twist.linear.x < -0.3)
+   {
+    cmd_vel.twist.linear.x == -0.3;
+   }
+
+
+
+ */
+/////////////////////////////////////////////////////////////////////
+
+
+
+/*
+
+/// MPC only
+ 
  // Find the closest pose on the path to the robot
   auto transformation_begin =
   min_by(
@@ -1174,114 +1282,100 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   // assign each consecutive goal pose 0.4m away from the previous
   auto target_pose_ = *transformation_end;
 
-// Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
- // double roll2, pitch2, yaw2;
- // tf2::Quaternion quat2;
- // tf2::fromMsg(target_pose_.pose.orientation, quat2);
- // tf2::Matrix3x3(quat2).getRPY(roll2, pitch2, yaw2);
-
- // target_pose_.pose.orientation.z = yaw2;
+  double v_act,w_act;
+  auto start = std::chrono::high_resolution_clock::now();
+        // NB! if I use while loop for 400ms with wMax set to 5 rad/s then I am gettin error solving optim problem but with while loop to 1 sec no problems
+        auto end = start + std::chrono::milliseconds(500); // End time
+       //  auto end = start + std::chrono::milliseconds(400); // End time
 
 
-//  std::cout<< "yaw2 =  "<<yaw2<<std::endl;
-
-  ref_pose_pub_ -> publish(target_pose_);
-
-//MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,45));
+        auto start_MPC_timer = std::chrono::high_resolution_clock::now(); // Start timer for 0.2-second interval
+        auto start_fblin_timer = std::chrono::high_resolution_clock::now(); // Start timer for 0.2-second interval
 
 
-//////// Feedback linearization only
+        while (std::chrono::high_resolution_clock::now() < end)
+        {
 
-/*
+          auto start_time_MPC = std::chrono::high_resolution_clock::now();
 
+            // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
+          double roll, pitch, yaw;
+          tf2::Quaternion quat;
+          tf2::fromMsg(pose.pose.orientation, quat);
+          tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
+            // std::cout<<"yaw: "<<yaw<<std::endl;
 
-  double epsilon_ = 0.15;
-
-  // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
-  double roll, pitch, yaw;
-  tf2::Quaternion quat;
-  tf2::fromMsg(pose.pose.orientation, quat);
-  tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
-
-  // Record the start time
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  // centroid.obstacles.begin(),centroid.obstacles.end()
+           // std::cout<<"yaw: "<<robot_pose_.pose.orientation.z<<std::endl;
 
 
-  // Find the closest pose on the path to the robot
-  auto transformation_begin =
-      min_by(
-          global_plan_.poses.begin(), global_plan_.poses.end(),
-          //&pose is current robot pose, ps is the other pose to go in euclidean_distance
-          [&pose](const geometry_msgs::msg::PoseStamped &ps)
+          MPC_.set_actualRobotState(Eigen::Vector3d(pose.pose.position.x, pose.pose.position.y, yaw));
+          //  MPC.set_actualRobotState(Eigen::Vector3d(0.9, 0, 0));
+
+
+            //std::cout<<"Current ref x: "<<ref_pose_.pose.position.x<<std::endl;
+            //std::cout<<"Current ref y: "<<ref_pose_.pose.position.y<<std::endl;
+
+
+
+
+
+           // MPC.set_referenceRobotState(Eigen::Vector3d(2, 0, 0));
+          MPC_.set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y, 0));
+
+
+            // Check if 0.2 seconds have passed since the last MPC execution
+          if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_MPC_timer).count() >= 200)
           {
-            return euclidean_distance(pose, ps);
-          });
 
-  // From the closest point, look for the first point that's 0.4m away
-  auto transformation_end = std::find_if(
-      transformation_begin, end(global_plan_.poses),
-      [&](const auto &global_plan_pose)
-      {
-        return euclidean_distance(pose, global_plan_pose) > 0.4; 
-      });
+            double vPx_act, vPy_act;
 
-  // assign each consecutive goal pose 0.4m away from the previous
-  auto target_pose_ = *transformation_end;
+                // compute MPC control and optimisation to obtain optimal control inputs 
+                // xp dot and yp dot to be used by the feedback linearisation to get v and w
 
-  // Record the end time
-  auto end_time = std::chrono::high_resolution_clock::now();
+            MPC_.executeMPCcontroller();
+            Eigen::VectorXd MPC_actControl;
 
-  // Calculate the duration
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-
-  // Print the execution time
- // std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
-
-  // calculate point P at a distance epsilon from the robot
-  feedback_lin_.calcPointP(pose, yaw, epsilon_);
-
-  // Apply proportional control for trajectory tracking without feed forward term
-  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 1; // was 2.5 before
-  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 0.5; // was 1.5 before
- 
-  // Apply feedback linearization
-  cmd_vel_ = feedback_lin_.linearize(xp_dot_, yp_dot_);
-
-  if (cmd_vel_.twist.angular.z > 0.1 )
-   {
-      cmd_vel_.twist.angular.z == 0.1;
-
-   }
-   else if (cmd_vel_.twist.angular.z < -0.1)
-   {
-    cmd_vel_.twist.angular.z == -0.1;
-   }
-
-   if (cmd_vel_.twist.linear.x > 0.3)
-   {
-    cmd_vel_.twist.linear.x == 0.3;
-   }
-   else if (cmd_vel_.twist.linear.x < -0.3)
-   {
-    cmd_vel_.twist.linear.x == -0.3;
-   }
-
-    
+                // get xp dot and yp dot that are computed by the MPC
+            MPC_.get_actualMPCControl(MPC_actControl);
+            vPx_act = MPC_actControl(0);
+            vPy_act = MPC_actControl(1);
 
 
-  cmd_vel_.header.frame_id = pose.header.frame_id;
-  cmd_vel_.header.stamp = clock_->now();
+                // Reset the timer for the next 0.2-second interval
+            start_MPC_timer = std::chrono::high_resolution_clock::now();
+          }
 
-  std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
-  std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
 
+          if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_fblin_timer).count() >= 10)
+          {
+
+
+            MPC_.executeLinearizationController();
+            start_fblin_timer = std::chrono::high_resolution_clock::now();
+          }
+
+            // Get actual control signal
+          MPC_.get_actualControl(v_act, w_act);
+
+          cmd_vel.twist.linear.x = v_act;
+      
+          cmd_vel.twist.angular.z = w_act;
+
+        }
+
+//////// 
 
 */
 
-// MPC();
+  cmd_vel.header.frame_id = pose.header.frame_id;
+  cmd_vel.header.stamp = clock_->now();
+
+  //std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
+  //std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
+
+
+   
 return cmd_vel;
 }
 
@@ -1292,9 +1386,73 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
   global_plan_ = path;
 
 
+}
+
+void CustomController::execute_MPC_node()
+{
+
+  std::cout<<"current x execute_MPC_node: "<<send_pose_.pose.position.x<<std::endl;
+
+
+  pose_pub_->publish(send_pose_);
 
 
 
+
+}
+
+void CustomController::execute_fblin()
+{
+
+  double epsilon_ = 0.15;
+
+  // Record the start time
+ // auto start_time = std::chrono::high_resolution_clock::now();
+
+
+  // Record the end time
+ // auto end_time = std::chrono::high_resolution_clock::now();
+
+  // Calculate the duration
+ // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+  // Print the execution time
+ // std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
+
+  //  std::cout<<"current x: "<<send_pose_.pose.position.x<<std::endl;
+
+
+  // calculate point P at a distance epsilon from the robot
+  feedback_lin_.calcPointP(send_pose_, send_pose_.pose.position.z, epsilon_);  // send_pose_.z is the converted yaw!
+
+//  std::cout<<"target x: "<<target_pose_.pose.position.x<<std::endl;
+
+
+  // Apply proportional control for trajectory tracking without feed forward term
+  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 1; // was 2.5 before
+  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 0.5; // was 1.5 before
+ 
+  // Apply feedback linearization
+  cmd_vel = feedback_lin_.linearize(xp_dot_, yp_dot_);
+
+  if (cmd_vel.twist.angular.z > 0.1 )
+   {
+      cmd_vel.twist.angular.z == 0.1;
+
+   }
+   else if (cmd_vel.twist.angular.z < -0.1)
+   {
+    cmd_vel.twist.angular.z == -0.1;
+   }
+
+   if (cmd_vel.twist.linear.x > 0.3)
+   {
+    cmd_vel.twist.linear.x == 0.3;
+   }
+   else if (cmd_vel.twist.linear.x < -0.3)
+   {
+    cmd_vel.twist.linear.x == -0.3;
+   }
 
 }
 
@@ -1304,7 +1462,7 @@ void CustomController::MPC()
 
   double v_act,w_act;
   auto start = std::chrono::high_resolution_clock::now();
-  auto end = start + std::chrono::seconds(1); // End time
+  auto end = start + std::chrono::milliseconds(201); // End time
 
   auto start_MPC_timer = std::chrono::high_resolution_clock::now(); // Start timer for 0.2-second interval
   auto start_fblin_timer = std::chrono::high_resolution_clock::now(); // Start timer for 0.2-second interval
@@ -1320,12 +1478,14 @@ void CustomController::MPC()
     tf2::fromMsg(robot_pose_.pose.orientation, quat);
     tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-    //MPC_->set_actualRobotState(Eigen::Vector3d(robot_pose_.pose.position.x, robot_pose_.pose.position.y, yaw));
+   // std::cout<<"yaw: "<<yaw<<std::endl;
 
-    MPC_.set_actualRobotState(Eigen::Vector3d(1.0, 0, yaw));
+    MPC_.set_actualRobotState(Eigen::Vector3d(robot_pose_.pose.position.x, robot_pose_.pose.position.y, yaw));
+
+    //MPC_.set_actualRobotState(Eigen::Vector3d(1.0, 0, yaw));
 
 
-    MPC_.set_referenceRobotState(Eigen::Vector3d(1.0, 0.0, 0));
+    MPC_.set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y, 0));
 
       // Check if 0.2 seconds have passed since the last MPC execution
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_MPC_timer).count() >= 200)
@@ -1356,8 +1516,8 @@ void CustomController::MPC()
 
     MPC_.get_actualControl(v_act, w_act);
 
-    cmd_vel_.linear.x = v_act;
-    cmd_vel_.angular.z = w_act;
+    cmd_vel.twist.linear.x = v_act;
+    cmd_vel.twist.angular.z = w_act;
 
    }
  }

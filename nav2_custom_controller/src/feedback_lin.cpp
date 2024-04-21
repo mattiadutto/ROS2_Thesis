@@ -13,6 +13,8 @@ void FeedbackLin::calcPointP(const geometry_msgs::msg::PoseStamped &pose, const 
     pointP_[1] = yp_;
 }
 
+
+
 const geometry_msgs::msg::TwistStamped &FeedbackLin::linearize(const double xp_dot, const double yp_dot)
 {
     xp_dot_ = xp_dot;
