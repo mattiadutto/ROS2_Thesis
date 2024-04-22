@@ -3,6 +3,7 @@
 #include <cmath>
 #include <fstream>
 #include <eigen3/unsupported/Eigen/MatrixFunctions>
+#include <chrono>
 
 MPC_diffDrive_fblin::MPC_diffDrive_fblin()
  {
@@ -144,9 +145,14 @@ bool MPC_diffDrive_fblin::initialize() {
     _Bin_vel = Eigen::VectorXd::Zero(2*2*_N);
 
     // Initialize actual and reference data
+    _obst_matrix = Eigen::MatrixXd::Zero(0,0); // in set method it will be resized dynamically
+    _obst_vector = Eigen::VectorXd::Zero(0); // in set method it will be resized dynamically
     _actRobotState = Eigen::VectorXd::Zero(3); // column vector of 3 rows with 0 value ( 0 will be x, 1 will be y and 3 will be theta)
     _refRobotState = Eigen::VectorXd::Zero(3);
     _predictRobotState = Eigen::VectorXd::Zero(3*(_N+1)); // if we consider N = 3 it will have 12 entries
+    _predicted_x.resize((_N+1),0);
+    _predicted_y.resize((_N+1),0);
+    _predicted_theta.resize((_N+1),0);
     _refMPCstate = Eigen::VectorXd::Zero(2);
     _actMPCstate = Eigen::VectorXd::Zero(2);
     _optimVect = Eigen::VectorXd::Zero(2*_N); // creates column vector of size twice the prediction horizon as it 
@@ -171,7 +177,11 @@ bool MPC_diffDrive_fblin::initialize() {
     return true;
 }
 
-bool MPC_diffDrive_fblin::executeMPCcontroller() {
+bool MPC_diffDrive_fblin::executeMPCcontroller()
+ {
+
+    auto start = std::chrono::steady_clock::now(); // Record start time
+
     /** Preliminary checks */
     if (!_controllerInitialized)
     {
@@ -179,22 +189,18 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         return false;
     }
 
-
-   std::cout<<"execute mpc controller function called"<<std::endl;
+   //std::cout<<"execute mpc controller function called"<<std::endl;
 
 
 
     // Compute the prediction of the plant states based on the previous step control vector
     double act_x, act_y, act_theta;
-    // at first pass k=0 positions 0,1,2 of predictRobotState will be 0 
-    // at k = 1 actRobotState position 0,1,2 will contain values of x y theta computed at k=0
     _predictRobotState(0) = act_x = _actRobotState(0);
     _predictRobotState(1) = act_y = _actRobotState(1);
     _predictRobotState(2) = act_theta = _actRobotState(2);
 
-// this for loop will make the predictions for the x y theta states based on the given
-// prediction horizon and store them in predictRobotState
-// considering N = 3 therefore  this loop will execute 2 times to compute the states at time k+1 k+2 ahead
+            double v, w; // used by the robot
+
     for (auto k=0; k<_N; k++)
      {
 
@@ -206,18 +212,12 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
             _fblinSimController->set_unicycleState(act_x, act_y, act_theta);
 
             // Compute the robot velocities
-            double v, w; // used by the robot
+           // double v, w; // used by the robot
 
-            // the first (_optimVect(2*k) passes the xp_dot given by 2*k so at each iteratation it passes the next value)
-            // at k = 1 it passes optimVector positions 2 and 3 (it should be xpdot and ypdot)
-            // and save the velocities in v and w
             _fblinSimController->control_transformation(_optimVect(2*k), _optimVect(2*k+1), v, w);
 
             // Compute the next robot state for the current k
 
-          //  std::cout<<"v from execute mpc: "<<v<<std::endl;
-
-            // here are the kinematic equations in discrete time to get x,y,theta from the velocities
             
             act_x += v*_fblin_Ts*std::cos(act_theta+w*_fblin_Ts/2.0);
             act_y += v*_fblin_Ts*std::sin(act_theta+w*_fblin_Ts/2.0) ;
@@ -225,23 +225,53 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
         }
 
         // Store the computed robot state
-        _predictRobotState(3*(k+1)) = act_x; // at k = 0 it will store x y theta in 3 4 and 5 row 
-                                             // at k = 1 it will be  in positions 6 7 8
-                                            // at k = 2 (last one if N =3) in positions 9 10 11 (as predictRobot state has 11 positions )
-       
-       // std::cout<<"_predictRobotState: "<<act_x<<std::endl;
+        _predictRobotState(3*(k+1)) = act_x;
+        _predicted_x[k] = act_x;  
         _predictRobotState(3*(k+1)+1) = act_y;
+        _predicted_y[k] = act_y;
         _predictRobotState(3*(k+1)+2) = act_theta;
+        _predicted_theta[k] = act_theta;
+/*
+        std::cout<<"Current x: "<<_actRobotState(0)<<"Current y: "<<_actRobotState(1)<<std::endl;
+        std::cout<<"Current ref x: "<<_refRobotState(0)<<"Current ref y: "<<_refRobotState(1)<<std::endl;
+
+
+ // Print the computed robot state
+        std::cout << "k = " << k << ": "
+                  << "x = " << act_x << ", "
+                  << "y = " << act_y << ", "
+                  << "theta = " << act_theta << ", "
+                  << "v = " << v << ", "
+                  << "w = " << w << std::endl;
+*/
+        
+
+       
     }
 
     // Compute constraint matrices
     compute_wheelVelocityConstraint();
+
+    compute_ObstacleConstraint(_obst_matrix,_obst_vector);
+
     std::vector<GRBConstr> wheelVelocityConstrain;
     if (!_solver->addConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
     {
         std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
         return false;
     }
+
+    // OBSTACLE CONSTRAINTS ///////////////////////////////////////////////////////////////////
+
+    
+    std::vector<GRBConstr> obstConstraint;
+    if (!_solver->addConstraint(_A_obst, _B_obst, obstConstraint))
+    {
+        std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
+     return false;
+    }
+
+
 
     // Compute cost function matrices
     compute_objectiveMatrix();
@@ -260,6 +290,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
 
 
         std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error solving the optimization problem" << std::endl;
+
+
         return false;
     }
     if (optimizerStatus!=GUROBIsolver::OPTIMAL)
@@ -283,15 +315,28 @@ bool MPC_diffDrive_fblin::executeMPCcontroller() {
 
 if (_optimVect.size() != 0)
 { 
-   // std::cout<<" optimVect[0]"<<_optimVect(0)<<std::endl;
-    //std::cout<<" optimVect[1]"<<_optimVect(1)<<std::endl;
+ //   std::cout<<" optimVect[0]"<<_optimVect(0)<<std::endl;
+  //  std::cout<<" optimVect[1]"<<_optimVect(1)<<std::endl;
 
 }
 
 // Write the results
-    std::cout << "Solution: [" << _optimVect(0) << ", " << _optimVect(1) << ", " << _optimVect(2) << "]" << std::endl;
+
+        std::cout<<"Current x: "<<_actRobotState(0)<<"Current y: "<<_actRobotState(1)<<std::endl;
+        std::cout<<"Current ref x: "<<_refRobotState(0)<<"Current ref y: "<<_refRobotState(1)<<std::endl;
+
+
+
+    std::cout << "Solution: [" << _optimVect(0) << ", " << _optimVect(1)  <<  "]" << std::endl;
     std::cout << "Objective: " << objectiveValue << std::endl;
     std::cout << "Status: " << optimizerStatus << std::endl << std::endl;
+
+
+ auto end = std::chrono::steady_clock::now(); // Record end time
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // Calculate elapsed time
+
+        std::cout << "Execution time: " << duration.count() << " milliseconds" << std::endl; // Print elapsed time to CLI
+
 
     return true;
 }
@@ -345,9 +390,23 @@ void MPC_diffDrive_fblin::set_actualRobotState(const Eigen::VectorXd& actRobotSt
     }
 }
 
-void MPC_diffDrive_fblin::set_referenceRobotState(const Eigen::VectorXd& refRobotState)
+void MPC_diffDrive_fblin::set_obstacle_matrices(const Eigen::MatrixXd& matrix, const Eigen::VectorXd& vector)
 {
 
+     // Extract number of rows
+    size_t num_rows = matrix.size();
+
+    // Resize _obst_matrix and _obst_vector
+    _obst_matrix.resize(num_rows, 2);
+    _obst_vector.resize(num_rows);
+
+
+    _obst_matrix = matrix;
+    _obst_vector = vector;
+}
+
+void MPC_diffDrive_fblin::set_referenceRobotState(const Eigen::VectorXd& refRobotState)
+{
     if (refRobotState.size()!=3)
     {
         std::cout << "[MPC_diffDrive_fblin.set_referenceRobotState] The refState variable has the wrong size" << std::endl;
@@ -387,6 +446,13 @@ void MPC_diffDrive_fblin::get_actualControl(double &linVelocity, double &angVelo
 {
     linVelocity = linearVelocity;
     angVelocity = angularVelocity;
+}
+
+void MPC_diffDrive_fblin::get_predicted_states(std::vector<double> &predicted_x,std::vector<double> &predicted_y,std::vector<double> &predicted_theta)
+{
+    predicted_x = _predicted_x;
+    predicted_y = _predicted_y;
+    predicted_theta = _predicted_theta;
 }
 
 
@@ -440,52 +506,108 @@ void MPC_diffDrive_fblin::compute_RcalMatrix() {
     _Rcal = Eigen::MatrixXd::Zero(_N*2, _N*2);
 
     // Compute Rcal matrix
-    _Rcal.diagonal() = Eigen::VectorXd::Ones(_N*2)*_r;
+    //_Rcal.diagonal() = Eigen::VectorXd::Ones(_N*2)*_r;
+
+    // Compute Rcal matrix
+    for (int i = 0; i < _N*2; i++) {
+        if (i % 2 == 0) { // Even rows/columns correspond to linear velocity
+            _Rcal(i, i) = _r;
+        } else { // Odd rows/columns correspond to angular velocity
+            _Rcal(i, i) = _r;
+        }
+    }
 
     // Check matrix
     saveMatrixToFile("Rcal_matrix.csv", _Rcal);
 }
 
-void MPC_diffDrive_fblin::compute_objectiveMatrix() {
+
+void MPC_diffDrive_fblin::compute_ObstacleConstraint(const Eigen::MatrixXd& matrix, const Eigen::VectorXd& vector)
+{
+
+
+    int num_rows = matrix.rows();
+    int num_cols = matrix.cols();
+
+    // Calculate the size of Hbar based on the size of the passed matrix
+    int Hbar_rows = num_rows;
+    int Hbar_cols = num_cols;
+
+    // Calculate the size of H_obst based on the size of Hbar and the prediction horizon N
+    int H_obst_rows = Hbar_rows * (_N + 1);
+    int H_obst_cols =  2 * (_N+1);
+
+    _H_obst = Eigen::MatrixXd::Zero(H_obst_rows, H_obst_cols);
+    _L_obst = Eigen::VectorXd::Zero(_H_obst.rows());
+
+    _A_obst = Eigen::MatrixXd::Zero(_H_obst.rows(),_Bcal.cols());
+
+    _B_obst = Eigen::VectorXd::Zero(_H_obst.rows());
+
+    _fblin_states = Eigen::MatrixXd::Zero(2,1);
+
+    _fblin_states(0,0) = _actRobotState(0);
+    _fblin_states(1,0) = _actRobotState(1);
+
+    for (int k = 0; k < _N + 1; k++)
+    {
+        Eigen::MatrixXd Hbar = matrix;
+
+        int start_row = Hbar_rows * k;
+        int start_col = Hbar_cols* k;
+
+        _H_obst.block(start_row, start_col, Hbar_rows, Hbar_cols) = Hbar;
+
+        
+
+}
+
+for (int i = 0; i < _L_obst.size(); i++)
+{
+    _L_obst(i) = vector(i % vector.size());
+}
+
+ _A_obst = _H_obst * _Bcal;
+
+    _B_obst = _L_obst - ((_H_obst * _Acal)) * _fblin_states;
+
+
+    // Check matrix
+    saveMatrixToFile("H_obst_matrix.csv", _H_obst);
+    saveMatrixToFile("L_obst_matrix.csv", _L_obst);
+    saveMatrixToFile("A_obst_matrix.csv", _A_obst);
+    saveMatrixToFile("B_obst_matrix.csv",_B_obst);
+
+
+}
+void MPC_diffDrive_fblin::compute_objectiveMatrix()
+{
     // Initialize H and f matrices
     _H = Eigen::MatrixXd::Zero(2*_N, 2*_N);
     _f = Eigen::VectorXd::Zero(_H.rows());
 
     // Compute reference vector
     Eigen::VectorXd _refStateVect = Eigen::VectorXd::Zero(2*(_N+1));
-    for (auto i=0; i<_N+1; i++) {
+    for (auto i=0; i<_N+1; i++)
+    {
         _refStateVect.block(i*2, 0, 2, 1) = _refMPCstate;
     }
 
-            std::cout<<"actMPCstate: "<<_actMPCstate[0]<<std::endl;
+ //   for (int i=0; i<_actMPCstate.size();i++)
+ //   {
+
+  //      std::cout<<"actMPCstate: "<<_actMPCstate[i]<<std::endl;
+ //  }
+
+
+        std::cout<<"actMPCstate[0]: "<<_actMPCstate[0]<<std::endl;
+        std::cout<<"actMPCstate[1]: "<<_actMPCstate[1]<<std::endl;
+
 
 
     // Compute H and f matrices
     _H = _Bcal.transpose()*_Qcal*_Bcal+_Rcal;
     _f = (_Acal*_actMPCstate-_refStateVect).transpose()*_Qcal*_Bcal;
-
-        if (_actMPCstate[0] > 0.8 && _actMPCstate[0] < 0.9)
-    {
-    std::cout<<"f vector current value"<<_f<<std::endl<<std::endl;
-    saveMatrixToFile("f_>0.8_<0.9.csv", _f);
-
-}
-
-
-    if (_actMPCstate[0] > 0.98 && _actMPCstate[0] < 1)
-    {
-    std::cout<<"f vector current value"<<_f<<std::endl<<std::endl;
-            saveMatrixToFile("f_>0.98_<1.csv", _f);
-
-}
-
-
-    if (_actMPCstate[0] >1 && _actMPCstate[0] < 1.04)
-    {
-    std::cout<<"f vector current value"<<_f<<std::endl<<std::endl;
-        saveMatrixToFile("f_>1_<1.04.csv", _f);
-
-}
 
     // Check matrix
     saveMatrixToFile("H_matrix.csv", _H);
@@ -505,9 +627,9 @@ void MPC_diffDrive_fblin::compute_wheelVelocityConstraint() {
                                2.0*std::sin(_predictRobotState(3*k+2))+_track/_Pdist*std::cos(_predictRobotState(3*k+2))},
                               {2.0*std::cos(_predictRobotState(3*k+2))+_track/_Pdist*std::sin(_predictRobotState(3*k+2)),
                                2.0*std::sin(_predictRobotState(3*k+2))-_track/_Pdist*std::cos(_predictRobotState(3*k+2))}};
+
         _Ain_vel.block(2*k, 2*k, 2, 2) = Abar;
         _Ain_vel.block(2*(k+_N), 2*k, 2, 2) = -Abar;
-
         _Bin_vel(2*k) = _wheelVelMax*2.0*_wheelRadius;
         _Bin_vel(2*k+1) = _wheelVelMax*2.0*_wheelRadius;
         _Bin_vel(2*(k+_N)) = -_wheelVelMin*2.0*_wheelRadius;

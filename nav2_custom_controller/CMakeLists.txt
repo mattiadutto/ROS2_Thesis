@@ -12,8 +12,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #set(GUROBI_LIB_DIR "/home/mario/Gurobi/gurobi1100/linux64/lib")
 set(GUROBI_LIB_DIR "$ENV{HOME}/Gurobi/gurobi1100/linux64/lib")
 
-
-
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(nav2_common REQUIRED)
@@ -27,6 +25,7 @@ find_package(pluginlib REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(costmap_converter REQUIRED)
 find_package(costmap_converter_msgs REQUIRED)
+find_package(nav2_custom_controller_msgs REQUIRED)                         # CHANGE
 
 
 
@@ -50,6 +49,8 @@ set(dependencies
   tf2
   costmap_converter
   costmap_converter_msgs
+  nav2_custom_controller_msgs
+
 
   
 )
@@ -68,8 +69,22 @@ set(SOURCES
   src/GUROBIsolver.cpp
   src/fblin_unicycle.cpp
   src/convex_hull.cpp
+  src/mpc_node.cpp
 
 )
+
+set(ADDITIONAL_NODE_SOURCES
+  src/custom_controller.cpp
+  src/feedback_lin.cpp
+  src/MPC_diffDrive_fblin.cpp
+  src/GUROBIsolver.cpp
+  src/fblin_unicycle.cpp
+  src/convex_hull.cpp
+  src/mpc_node.cpp
+
+)
+
+add_executable(mpc_node ${ADDITIONAL_NODE_SOURCES})
 
 # Build the main library
 add_library(nav2_custom_controller SHARED ${SOURCES})
@@ -82,6 +97,7 @@ add_library(nav2_custom_controller SHARED ${SOURCES})
 #        )
 
 target_link_libraries(nav2_custom_controller ${GUROBI_LIB_DIR}/libgurobi110.so)
+target_link_libraries(mpc_node nav2_custom_controller)
 
 #target_link_libraries(nav2_custom_controller
  #   ${CMAKE_DL_LIBS} # This is often necessary for Gurobi
@@ -108,6 +124,9 @@ install(TARGETS nav2_custom_controller
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+install(TARGETS mpc_node
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY include/

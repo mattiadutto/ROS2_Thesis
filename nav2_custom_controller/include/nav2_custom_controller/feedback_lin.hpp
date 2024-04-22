@@ -39,7 +39,7 @@ class FeedbackLin
     //   - yp_dot: y-coordinate of point P
     // Returns: const reference of TwistStamped message 
 
-    const geometry_msgs::msg::TwistStamped &linearize(const double xp_dot, const double yp_dot);
+    const geometry_msgs::msg::Twist &linearize(const double xp_dot, const double yp_dot);
 
     // Function that returns position of point P 
     // Returns: xp-coordinate in [0] and yp-coordinate in [1]
@@ -52,7 +52,7 @@ class FeedbackLin
     // Variables Declaration
 
     double xp_,yp_,xp_dot_,yp_dot_,epsilon_,yaw_;
-    geometry_msgs::msg::TwistStamped vel_;
+    geometry_msgs::msg::Twist vel_;
     geometry_msgs::msg::PoseStamped pose_;
     std::array<double,2> pointP_;
 

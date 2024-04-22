@@ -23,10 +23,15 @@
 #include "nav2_core/exceptions.hpp"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
+#include <fstream> // Add this line to include the <fstream> header
 
 #include "costmap_converter_msgs/msg/obstacle_msg.hpp"
 #include "costmap_converter/costmap_converter_interface.h"
 #include "costmap_converter/costmap_to_polygons.h"
+
+#include "nav2_custom_controller_msgs/msg/column_msg.hpp"
+#include "nav2_custom_controller_msgs/msg/matrix_msg.hpp"
+
 
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
@@ -108,16 +113,18 @@ class CustomController : public nav2_core::Controller
 
     void cmd_vel_sub_callback(const geometry_msgs::msg::Twist &cmd_vel_received);
 
-    void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
+    void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
     bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
     void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
     void compute_most_violated_constraints();
+void constraints_callback(const nav2_custom_controller_msgs::msg::MatrixMsg &received) const;
 
 
     void execute_fblin();
     void execute_MPC_node();
    // void execute_MPC();
+
 
     // 
 
@@ -125,7 +132,7 @@ class CustomController : public nav2_core::Controller
     
 
 
-    protected:
+     protected:
     
   // Member declaration
     rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
@@ -156,6 +163,8 @@ class CustomController : public nav2_core::Controller
     geometry_msgs::msg::Twist cmd_vel_;
     geometry_msgs::msg::TwistStamped cmd_vel;
 
+    bool path_saved_; // Flag to indicate whether the path has been saved
+
    pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
@@ -166,10 +175,13 @@ class CustomController : public nav2_core::Controller
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_pub_;
+    rclcpp::Publisher<nav2_custom_controller_msgs::msg::MatrixMsg>::SharedPtr mpc_obstacle_constraints_pub_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
 
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
+    rclcpp::Subscription<nav2_custom_controller_msgs::msg::MatrixMsg>::SharedPtr constraints_sub_;
+
     rclcpp::TimerBase::SharedPtr wall_timer_;
 
     geometry_msgs::msg::TransformStamped received_tf_;
@@ -181,6 +193,9 @@ class CustomController : public nav2_core::Controller
 
     std::vector<std::vector<float>> b_vect_;
     std::vector<std::vector<float>> A_obst_matrix_;
+
+    std::vector<std::vector<float>> b_convex_region_vect_;
+    std::vector<std::vector<float>> A_convex_region_matrix_;
 
 
      // decide for these either to be private members or pass them as ref
@@ -206,6 +221,11 @@ class CustomController : public nav2_core::Controller
     costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid_;
     costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
     costmap_converter_msgs::msg::ObstacleArrayMsg final_stored_centroid_point_;
+
+    nav2_custom_controller_msgs::msg::MatrixMsg mpc_obstacle_constraints_;
+
+
+
 
     // MPC part 
 
