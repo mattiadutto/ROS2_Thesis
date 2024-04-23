@@ -874,13 +874,13 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
     intercept = point1.x; //before intercept had the original non-inverted value of x
     rowVector = {slope, 0};
 
-    // new approach 
+    // new approach, do this conversion before publishing to obstacle_constraints topic for all constraints that make result_pose (+)
 
-    if (intercept < robot_footprint_rotated_[3].x) // if the line is behind the robot
-    {
-      slope = -1; //invert
-      intercept = -1*intercept; // invert
-    }
+  //  if (intercept < robot_footprint_rotated_[3].x) // if the line is behind the robot
+   // {
+    //  slope = -1; //invert
+     // intercept = -1*intercept; // invert
+   // }
 
   }
   else if (slope == 0) // vertical line
@@ -937,12 +937,12 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
-      /*std::cout<<"pose x "<<point.x<<std::endl;
-      std::cout<<"pose y "<<point.y<<std::endl;
-      std::cout<<"result pose: "<<result_pose<<std::endl;
-      std::cout<<"centroid x "<<centroid_point.x<<std::endl;
-      std::cout<<"centroid y "<<centroid_point.y<<std::endl;
-      std::cout<<"result centroid: "<<result_centroid<<std::endl;  */
+     // std::cout<<"pose x "<<point.x<<std::endl;
+     // std::cout<<"pose y "<<point.y<<std::endl;
+    //  std::cout<<"result pose: "<<result_pose<<std::endl;
+     // std::cout<<"centroid x "<<centroid_point.x<<std::endl;
+     // std::cout<<"centroid y "<<centroid_point.y<<std::endl;
+    //  std::cout<<"result centroid: "<<result_centroid<<std::endl;  
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
         //result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
@@ -1080,6 +1080,18 @@ void CustomController::compute_most_violated_constraints()
     // A_matrix_col.col1 = 5;
     //A_matrix_col.col2 = 1;
 
+    if(result_pose_stored_[largest_index][0] > 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot
+    {
+      // invert all values
+      A_matrix_col.col1 = A_matrix_col.col1 * -1;
+      A_matrix_col.col2 = A_matrix_col.col2 * -1;
+      b_vect_col.col1 = b_vect_col.col1 * -1;
+
+      std::cout<<"A inverted: "<<A_matrix_col.col1<<" "<<A_matrix_col.col2<<std::endl;
+      std::cout<<"b inverted: "<<b_vect_col.col1<<std::endl;
+
+
+    }
 
 
     mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
