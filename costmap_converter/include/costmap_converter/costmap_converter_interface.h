@@ -46,10 +46,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
-//#include "nav2_costmap_2d/costmap_2d.hpp"
-#include "/home/mario/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d_ros.hpp"
-#include "/home/mario/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d.hpp"
-//#include "nav2_costmap_2d/costmap_2d_ros.hpp"
+#include "nav2_costmap_2d/costmap_2d.hpp"
+//#include "/home/mario/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d_ros.hpp"
+//#include "/home/mario/scout_working/src/nav2_costmap_2d/include/nav2_costmap_2d/costmap_2d.hpp"
+#include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
 #include <geometry_msgs/msg/polygon.hpp>
 #include <costmap_converter_msgs/msg/obstacle_array_msg.hpp>
