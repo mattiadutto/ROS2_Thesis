@@ -36,6 +36,9 @@ public:
     void get_actualControl(double& linVelocity, double& angVelocity);
     void get_predicted_states(std::vector<double> &predicted_x,std::vector<double> &predicted_y,std::vector<double> &predicted_theta);
 
+    void get_status(int& status);
+    void get_objective_value(double& value);
+
 
 private:
     // MPC parameters
@@ -70,6 +73,8 @@ private:
 
     GUROBIsolver* _solver;
 
+    bool _constraints_received;
+
     // Feedback linearization parameters
     double _fblin_Ts, _Pdist;
 
@@ -84,6 +89,10 @@ private:
     // Controller variables
     bool _controllerInitialized;
     double linearVelocity, angularVelocity;
+
+    int _optimizerStatus;
+
+    double objectiveValue;
 
     // Private member functions
     void compute_AcalMatrix();

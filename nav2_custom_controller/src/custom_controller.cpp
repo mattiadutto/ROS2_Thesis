@@ -1,6 +1,6 @@
 #include "nav2_custom_controller/custom_controller.hpp"
 
-// scout_mini_mpc_sim file
+// scout_mini_mpc_robot file
 using std::hypot;
 using std::min;
 using std::max;
@@ -160,10 +160,10 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     // obstacle algorithm parameters
 
     declare_parameter_if_not_declared(
-      node, plugin_name_ + ".obstacle_distance_threshold", rclcpp::ParameterValue(1.0));
+      node, plugin_name_ + ".obstacle_distance_threshold", rclcpp::ParameterValue(0.2));
 
 
-    // MPC parameters
+  /*  // MPC parameters
 
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".prediction_horizon", rclcpp::ParameterValue(10));
@@ -211,7 +211,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".base_width", rclcpp::ParameterValue(0.4));
-
+*/
 
     // Set parameters from yaml file
     node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
@@ -298,7 +298,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
-    cmd_vel_sub_ = node->create_subscription<geometry_msgs::msg::Twist>("/scout_mini/cmd_vel_from_node",100,std::bind(&CustomController::cmd_vel_sub_callback, this,std::placeholders::_1));
+    cmd_vel_sub_ = node->create_subscription<geometry_msgs::msg::Twist>("/cmd_vel_from_node",100,std::bind(&CustomController::cmd_vel_sub_callback, this,std::placeholders::_1));
 
     ////////////////////////////////////////////////
 
@@ -331,26 +331,12 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
       }
     }
 
-// Extract the four corner points
-auto min_x_it = std::min_element(point_vect_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
-auto max_x_it = std::max_element(point_vect_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
-auto min_y_it = std::min_element(point_vect_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
-auto max_y_it = std::max_element(point_vect_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
-
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_left = *min_x_it;
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_right = *max_x_it;
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_left = *min_y_it;
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
-
-
-std::cout << "Top left corner: (" << top_left.x << ", " << top_left.y << ")" << std::endl;
-std::cout << "Top right corner: (" << top_right.x << ", " << top_right.y << ")" << std::endl;
-std::cout << "Bottom left corner: (" << bottom_left.x << ", " << bottom_left.y << ")" << std::endl;
-std::cout << "Bottom right corner: (" << bottom_right.x << ", " << bottom_right.y << ")" << std::endl;
 
 
 
     path_saved_ = false;
+
+    index=1;
 
     ////////////////////////////////////////////////////////
 
@@ -416,13 +402,12 @@ std::cout << "Bottom right corner: (" << bottom_right.x << ", " << bottom_right.
 
 void CustomController::constraints_callback(const nav2_custom_controller_msgs::msg::MatrixMsg &received) const
 {
-//  std::cout<<"a_matrix: "<<received.matrix_rows[0].col1<<std::endl;
   
 }
 
 
 
-
+// timer function that handles obstacle avoidance constraints algorithm
 void CustomController::timer_callback()
 {
 
@@ -461,11 +446,30 @@ void CustomController::timer_callback()
     // Translate the point
     transformed_point.x += received_tf_.transform.translation.x;
     transformed_point.y += received_tf_.transform.translation.y;
-
+                                          
     point_vect_rotated_.push_back(transformed_point);
 
 
   }
+
+
+  // Extract the four corner points of the rotated grid
+/*auto min_x_it = std::min_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
+auto max_x_it = std::max_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
+auto min_y_it = std::min_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
+auto max_y_it = std::max_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
+
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_left = *min_x_it;
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_right = *max_x_it;                                                                                                                                                               
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_left = *min_y_it;
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
+
+*/
+//std::cout << "Top left corner: (" << top_left.x << ", " << top_left.y << ")" << std::endl;
+//std::cout << "Top right corner: (" << top_right.x << ", " << top_right.y << ")" << std::endl;
+//std::cout << "Bottom left corner: (" << bottom_left.x << ", " << bottom_left.y << ")" << std::endl;
+//std::cout << "Bottom right corner: (" << bottom_right.x << ", " << bottom_right.y << ")" << std::endl;
+
 
   robot_footprint_rotated_.clear();
 
@@ -644,7 +648,7 @@ int num = 0;
 
   // printing
 
-  std::cout<<"A_matrix"<<std::endl;
+/*  std::cout<<"A_matrix"<<std::endl;
 
 
   for (const auto& row : A_obst_matrix_) {
@@ -683,7 +687,45 @@ int num = 0;
       std::cout << val << " ";
     }
     std::cout << std::endl;
-  }
+  }*/
+
+
+  RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_matrix");
+
+for (const auto& row : A_obst_matrix_) {
+    for (const auto& val : row) {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+}
+
+RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_vector");
+
+for (const auto& row : b_vect_) {
+    for (const auto& val : row) {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+}
+
+RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_most_violated_matrix");
+
+for (const auto& row : A_most_violated_matrix_) {
+    for (const auto& val : row) {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+}
+
+RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_most_violated_vect");
+
+for (const auto& row : b_most_violated_vect_) {
+    for (const auto& val : row) {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+}
+
   
   
 
@@ -837,7 +879,8 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
     double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
     
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
-    if (distance < obstacle_distance_thresh_)
+   // if (distance < obstacle_distance_thresh_)
+    if(distance<0.5)
     {
 
       considered_centroid.obstacles.push_back(obstacle);
@@ -850,7 +893,8 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
   }
 
   // Return the vector container with considered polygons below the threshold
-  //std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
+RCLCPP_INFO(rclcpp::get_logger("CustomController"), 
+    "Number of considered polygons: %d", considered_polygons.obstacles.size());
   
 }
 
@@ -874,7 +918,7 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
     intercept = point1.x; //before intercept had the original non-inverted value of x
     rowVector = {slope, 0};
 
-    // new approach, do this conversion before publishing to obstacle_constraints topic for all constraints that make result_pose (+)
+       // new approach, do this conversion before publishing to obstacle_constraints topic for all constraints that make result_pose (+)
 
   //  if (intercept < robot_footprint_rotated_[3].x) // if the line is behind the robot
    // {
@@ -937,12 +981,12 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
 
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
-     // std::cout<<"pose x "<<point.x<<std::endl;
-     // std::cout<<"pose y "<<point.y<<std::endl;
-    //  std::cout<<"result pose: "<<result_pose<<std::endl;
-     // std::cout<<"centroid x "<<centroid_point.x<<std::endl;
-     // std::cout<<"centroid y "<<centroid_point.y<<std::endl;
-    //  std::cout<<"result centroid: "<<result_centroid<<std::endl;  
+      /*std::cout<<"pose x "<<point.x<<std::endl;
+      std::cout<<"pose y "<<point.y<<std::endl;
+      std::cout<<"result pose: "<<result_pose<<std::endl;
+      std::cout<<"centroid x "<<centroid_point.x<<std::endl;
+      std::cout<<"centroid y "<<centroid_point.y<<std::endl;
+      std::cout<<"result centroid: "<<result_centroid<<std::endl;  */
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
         //result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
@@ -1016,6 +1060,8 @@ void CustomController::compute_violated_constraints(const std::vector<geometry_m
       }
 
     // If all values are either positive or negative, the product will be positive
+
+      
       if (all_positive || all_negative)
       {
    //     std::cout << "All values have the same sign" << std::endl;
@@ -1051,8 +1097,8 @@ void CustomController::compute_most_violated_constraints()
   for (size_t row = 0; row < result_pose_stored_.size(); row++)
   {
 
-    // was > before
-    if(result_pose_stored_[row][0] < largest) // with < it considers the least violated constraint
+    // was > before originally
+    if(result_pose_stored_[row][0] > largest) // with < it considers the least violated constraint
     {
       largest = result_pose_stored_[row][0];
       largest_index = row;
@@ -1080,18 +1126,24 @@ void CustomController::compute_most_violated_constraints()
     // A_matrix_col.col1 = 5;
     //A_matrix_col.col2 = 1;
 
+
+    
     if(result_pose_stored_[largest_index][0] > 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot
+   // if(result_pose_stored_[largest_index][0] < 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot ->  >0 is true for sim only, for real robot with 
+                                                  // positive x map frame down and positive y frame to the right, it should be for results < 0 
+
     {
-      // invert all values
+      // invert all values // this is true and verified if map frame is right hand convention (positive x up, positive y left)
       A_matrix_col.col1 = A_matrix_col.col1 * -1;
       A_matrix_col.col2 = A_matrix_col.col2 * -1;
       b_vect_col.col1 = b_vect_col.col1 * -1;
 
-      std::cout<<"A inverted: "<<A_matrix_col.col1<<" "<<A_matrix_col.col2<<std::endl;
-      std::cout<<"b inverted: "<<b_vect_col.col1<<std::endl;
+      //std::cout<<"A inverted: "<<A_matrix_col.col1<<" "<<A_matrix_col.col2<<std::endl;
+      //std::cout<<"b inverted: "<<b_vect_col.col1<<std::endl;
 
 
     }
+
 
 
     mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
@@ -1388,7 +1440,7 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
 
 
    // Find the closest pose on the path to the robot
-
+/*
   auto transformation_begin =
   min_by(
     global_plan_.poses.begin(), global_plan_.poses.end(),
@@ -1403,13 +1455,40 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
     transformation_begin, end(global_plan_.poses),
     [&](const auto &global_plan_pose)
     {
-      return euclidean_distance(pose, global_plan_pose) > 0.5; 
+      return euclidean_distance(pose, global_plan_pose) > 1.0; 
     });
 
   // assign each consecutive goal pose 0.4m away from the previous
-  auto target_pose_ = *transformation_end;
+  auto target_pose_ = *transformation_end;*/
 
-  target_pose_.header.frame_id = "map";
+//int index = 1;
+if (std::sqrt(std::pow((pose.pose.position.x) - global_plan_.poses[index].pose.position.x,2.0) + std::pow(pose.pose.position.y - global_plan_.poses[index].pose.position.y,2.0)) <= 0.5)
+{
+  index = std::min(static_cast<int>(index + 1), static_cast<int>(global_plan_.poses.size() - 1));
+ // index++;
+}
+
+//RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Setting target_pose_.pose.position.x to %.2f", global_plan_.poses[index].pose.position.x);
+//RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Setting target_pose_.pose.position.y to %.2f", global_plan_.poses[index].pose.position.y);
+
+
+  // Convert target.pose.orientation from Quaternion to Roll,Pitch,Yaw
+  double roll2, pitch2, yaw2;
+  tf2::Quaternion quat2;
+  tf2::fromMsg(global_plan_.poses[index].pose.orientation, quat2);
+  tf2::Matrix3x3(quat2).getRPY(roll2, pitch2, yaw2);
+
+
+
+
+target_pose_.pose.position.x = global_plan_.poses[index].pose.position.x;
+target_pose_.pose.position.y = global_plan_.poses[index].pose.position.y;
+target_pose_.pose.position.z = yaw;
+
+
+
+
+  target_pose_.header.frame_id = "base_link";
 
 
   // overwrite target_pose_ to be at [2,-1]
@@ -1420,77 +1499,19 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   ref_pose_pub_ -> publish(target_pose_);
 
 
-
+// select to execute the mpc node by publishing the pose over topic or to execute fblin inside this node
 /////////////////////////////////////////////////////////////////////////
 
 
-  execute_MPC_node();
+  execute_MPC_node(); // the computed cmd_vel from the MPC node will be published over topic, so this node will subscribe to the cmd_vel and return it to nav2 at the end of this function
 
  // execute_fblin();
 
-/////////////////////// fblin only//////////////////////////////
 
-/*
- double epsilon_ = 0.15;
-
-  // Record the start time
- // auto start_time = std::chrono::high_resolution_clock::now();
-
-
-  // Record the end time
- // auto end_time = std::chrono::high_resolution_clock::now();
-
-  // Calculate the duration
- // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-
-  // Print the execution time
- // std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
-
-  //  std::cout<<"current x: "<<send_pose_.pose.position.x<<std::endl;
-
-
-  // calculate point P at a distance epsilon from the robot
-  feedback_lin_.calcPointP(send_pose_, send_pose_.pose.position.z, epsilon_);  // send_pose_.z is the converted yaw!
-
-//  std::cout<<"target x: "<<target_pose_.pose.position.x<<std::endl;
-
-
-  // Apply proportional control for trajectory tracking without feed forward term
-  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 1; // was 2.5 before
-  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 0.5; // was 1.5 before
- 
-  // Apply feedback linearization
-  cmd_vel = feedback_lin_.linearize(xp_dot_, yp_dot_);
-
-  if (cmd_vel.twist.angular.z > 0.1 )
-   {
-      cmd_vel.twist.angular.z == 0.1;
-
-   }
-   else if (cmd_vel.twist.angular.z < -0.1)
-   {
-    cmd_vel.twist.angular.z == -0.1;
-   }
-
-   if (cmd_vel.twist.linear.x > 0.3)
-   {
-    cmd_vel.twist.linear.x == 0.3;
-   }
-   else if (cmd_vel.twist.linear.x < -0.3)
-   {
-    cmd_vel.twist.linear.x == -0.3;
-   }
-
-
-*/
- 
-/////////////////////////////////////////////////////////////////////
-
-
-
+////////////////////////////////////////////////////////////////////
 /*
 
-/// MPC only
+/// MPC only - not working in this node
  
  // Find the closest pose on the path to the robot
   auto transformation_begin =
@@ -1606,14 +1627,13 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   //std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
 
    
-
    auto end = std::chrono::high_resolution_clock::now();
 
      // Calculate the duration of the operation
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
     // Output the duration in microseconds
-    std::cout << "Time taken: " << duration << " microseconds" << std::endl;
+   // std::cout << "Time taken: " << duration << " microseconds" << std::endl;
 return cmd_vel;
 }
 
@@ -1628,7 +1648,7 @@ void CustomController::setPlan(const nav_msgs::msg::Path &path )
     if (!path_saved_)
      {
 
-        std::ofstream csvfile("/home/mario/scout_working/nav2_path.csv"); // Change the file path as needed
+        std::ofstream csvfile("/home/rosetea/ros2_ws/scout_garabetov/nav2_path.csv"); // Change the file path as needed
         csvfile << "x,y,yaw\n"; // Write header with yaw
 
         for (const auto& pose_stamped : path.poses) {

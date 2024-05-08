@@ -43,6 +43,9 @@ void fblin_unicycle::ouput_transformation(double& xP, double& yP)
 
 void fblin_unicycle::reference_transformation(double x_ref, double y_ref, double theta_ref, double& xP_ref, double& yP_ref)
 {
-    xP_ref = x_ref + p*cos(theta_ref);
-    yP_ref = y_ref + p*sin(theta_ref);
+   xP_ref = x_ref + p*cos(theta_ref);
+   yP_ref = y_ref + p*sin(theta_ref);
+
+   // xP_ref = x_ref;
+   // yP_ref = y_ref;
 }

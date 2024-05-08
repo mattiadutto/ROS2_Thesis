@@ -225,7 +225,7 @@ void constraints_callback(const nav2_custom_controller_msgs::msg::MatrixMsg &rec
     nav2_custom_controller_msgs::msg::MatrixMsg mpc_obstacle_constraints_;
 
 
-
+int index;
 
     // MPC part 
 
