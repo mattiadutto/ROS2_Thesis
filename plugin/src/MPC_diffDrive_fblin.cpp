@@ -264,14 +264,20 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
 
    // compute_ObstacleConstraint(_obst_matrix,_obst_vector);
 
-  //  compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
+   // compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
 
 
     // modifyConstraint should be called after the initial call ! NB!
 
     std::vector<GRBConstr> wheelVelocityConstrain;
-    
-    if (wheelVelocityConstrain.size()==0) {
+  //  if (!_solver->addConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
+  //  {
+  //      std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
+  //      return false;
+  //  }
+
+
+     if (wheelVelocityConstrain.size()==0) {
         if (!_solver->addConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
         {
             std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
@@ -286,18 +292,16 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
         }
     }
 
-
-
     // OBSTACLE CONSTRAINTS ///////////////////////////////////////////////////////////////////
 
     //if(_constraints_received == true)
    // {
-    //    std::vector<GRBConstr> obstConstraint;
-     //   if (!_solver->addConstraint(_A_obst, _B_obst, obstConstraint))
-     //   {
-    //         std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
-     //        return false;
-     //   }
+   //     std::vector<GRBConstr> obstConstraint;
+   //     if (!_solver->addConstraint(_A_obst, _B_obst, obstConstraint))
+    //    {
+   //          std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
+    //         return false;
+   //     }
    //     _constraints_received == false;
    // }
 
@@ -356,10 +360,10 @@ if (_optimVect.size() != 0)
 
 
 
-  /*  std::cout << "Solution: [" << _optimVect(0) << ", " << _optimVect(1)  <<  "]" << std::endl;
+    std::cout << "Solution: [" << _optimVect(0) << ", " << _optimVect(1)  <<  "]" << std::endl;
     std::cout << "Objective: " << objectiveValue << std::endl;
     std::cout << "Status: " << _optimizerStatus << std::endl << std::endl;
-*/
+
 
  auto end = std::chrono::steady_clock::now(); // Record end time
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // Calculate elapsed time

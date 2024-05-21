@@ -1,0 +1,7 @@
+
+
+<library path="plugin">
+	<class name="plugin/CustomController" type="plugin::CustomController" base_class_type="nav2_core::Controller">
+	  <description>This is an example plugin which produces pure pursuit controller.</description>
+	</class>
+</library>

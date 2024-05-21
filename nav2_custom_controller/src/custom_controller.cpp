@@ -282,11 +282,11 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("pose",10);
 
-    ref_pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("reference_pose",10);
+    ref_pose_pub_ = node ->create_publisher<geometry_msgs::msg::PoseStamped>("/scout_mini/reference_pose",10);
 
-    mpc_obstacle_constraints_pub_ = node ->create_publisher<nav2_custom_controller_msgs::msg::MatrixMsg>("obstacle_constraints",100);
+    mpc_obstacle_constraints_pub_ = node ->create_publisher<nav2_custom_controller_msgs::msg::MatrixMsg>("/scout_mini/obstacle_constraints",100);
 
-    constraints_sub_ = node->create_subscription<nav2_custom_controller_msgs::msg::MatrixMsg>("/obstacle_constraints",10,std::bind(&CustomController::constraints_callback, this,std::placeholders::_1));
+    constraints_sub_ = node->create_subscription<nav2_custom_controller_msgs::msg::MatrixMsg>("/scout_mini/obstacle_constraints",10,std::bind(&CustomController::constraints_callback, this,std::placeholders::_1));
 
 
 
@@ -298,7 +298,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
 
     pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
-    cmd_vel_sub_ = node->create_subscription<geometry_msgs::msg::Twist>("/cmd_vel_from_node",100,std::bind(&CustomController::cmd_vel_sub_callback, this,std::placeholders::_1));
+    cmd_vel_sub_ = node->create_subscription<geometry_msgs::msg::Twist>("/scout_mini/cmd_vel_from_node",100,std::bind(&CustomController::cmd_vel_sub_callback, this,std::placeholders::_1));
 
     ////////////////////////////////////////////////
 
@@ -1462,7 +1462,7 @@ geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const
   auto target_pose_ = *transformation_end;*/
 
 //int index = 1;
-if (std::sqrt(std::pow((pose.pose.position.x) - global_plan_.poses[index].pose.position.x,2.0) + std::pow(pose.pose.position.y - global_plan_.poses[index].pose.position.y,2.0)) <= 0.5)
+if (std::sqrt(std::pow((pose.pose.position.x) - global_plan_.poses[index].pose.position.x,2.0) + std::pow(pose.pose.position.y - global_plan_.poses[index].pose.position.y,2.0)) <= 0.8)
 {
   index = std::min(static_cast<int>(index + 1), static_cast<int>(global_plan_.poses.size() - 1));
  // index++;
@@ -1483,7 +1483,7 @@ if (std::sqrt(std::pow((pose.pose.position.x) - global_plan_.poses[index].pose.p
 
 target_pose_.pose.position.x = global_plan_.poses[index].pose.position.x;
 target_pose_.pose.position.y = global_plan_.poses[index].pose.position.y;
-target_pose_.pose.position.z = yaw;
+target_pose_.pose.position.z = yaw2;
 
 
 

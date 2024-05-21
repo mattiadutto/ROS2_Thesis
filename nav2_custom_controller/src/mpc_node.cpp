@@ -93,11 +93,11 @@ public:
         MPC = std::make_shared<MPC_diffDrive_fblin>();
 
         // subscription_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/scout_mini/amcl_pose",100,std::bind(&EmptyNode::topic_callback, this,std::placeholders::_1));
-        cmd_vel_pub_ = this ->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel_from_node",100);
-        pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/pose",100,std::bind(&EmptyNode::pose_callback, this,std::placeholders::_1));
-        ref_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/reference_pose",100,std::bind(&EmptyNode::reference_pose_callback, this,std::placeholders::_1));
-        predicted_path_ = this->create_publisher<nav_msgs::msg::Path>("/predicted_path", 10);
-        constraints_sub_ = this->create_subscription<nav2_custom_controller_msgs::msg::MatrixMsg>("/obstacle_constraints",10,std::bind(&EmptyNode::constraints_callback, this,std::placeholders::_1));
+        cmd_vel_pub_ = this ->create_publisher<geometry_msgs::msg::Twist>("/scout_mini/cmd_vel_from_node",100);
+        pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/scout_mini/pose",100,std::bind(&EmptyNode::pose_callback, this,std::placeholders::_1));
+        ref_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/scout_mini/reference_pose",100,std::bind(&EmptyNode::reference_pose_callback, this,std::placeholders::_1));
+        predicted_path_ = this->create_publisher<nav_msgs::msg::Path>("/scout_mini/predicted_path", 10);
+        constraints_sub_ = this->create_subscription<nav2_custom_controller_msgs::msg::MatrixMsg>("/scout_mini/obstacle_constraints",10,std::bind(&EmptyNode::constraints_callback, this,std::placeholders::_1));
 
 
         mpc_timer_ = this->create_wall_timer(std::chrono::milliseconds(200),std::bind(&EmptyNode::mpc_timer, this));
@@ -120,7 +120,7 @@ public:
         /************* Controller initialization *************/
 
         // MPC parameters
-        int N = 15;
+        int N = 5;
         double Ts_MPC = 0.2; // need to automatically change the wall timer duration ! for now change manually
         // Low Q, High R - > prioritizes minimizing control effort, possibly at the expense of tracking performance.
         // High Q, Low R - > prioritizes state tracking accuracy over control effort, leading to aggressive control actions.
@@ -129,12 +129,12 @@ public:
         int maxInfeasibleSolution = 5; //was 2 originally
         
         // Feedback linearization parameters
-         double p_dist = 0.3; // with >0.2 doesnt go to end goal going from +x toward -x position
+         double p_dist = 0.2; // with >0.2 doesnt go to end goal going from +x toward -x position
          double Ts_fblin = 0.01;
         
         // Robot parameters
         // robot top speed is 3 m/s, and the wheel radius is 0.08m, so the wMax for top speed is 37.5
-         double wMax = 3; // 
+         double wMax = 10; // 
          double wMin = -wMax;
          double R = 0.08;
          double d = 0.4;

@@ -3,11 +3,12 @@
 
 #include <eigen3/Eigen/Dense> 
 
-#include "nav2_custom_controller/GUROBIsolver.h"
-#include "nav2_custom_controller/fblin_unicycle.h"
+#include "plugin/GUROBIsolver.h"
+#include "plugin/fblin_unicycle.h"
 
 #define GUROBI_LICENSEID 2473430
 #define GUROBI_USERNAME  "mario"
+
 
 class MPC_diffDrive_fblin {
 
