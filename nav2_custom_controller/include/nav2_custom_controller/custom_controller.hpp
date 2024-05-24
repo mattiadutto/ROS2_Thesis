@@ -1,8 +1,6 @@
 #ifndef NAV2_CUSTOM_CONTROLLER__CUSTOM_CONTROLLER_HPP_
 #define NAV2_CUSTOM_CONTROLLER__CUSTOM_CONTROLLER_HPP_
 
-
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -12,7 +10,6 @@
 #include <utility>
 #include <chrono>
 #include "nav2_core/controller.hpp"
-#include "nav2_custom_controller/feedback_lin.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "pluginlib/class_loader.hpp"
 #include "pluginlib/class_list_macros.hpp"
@@ -41,6 +38,10 @@
 
 #include "nav2_custom_controller/convex_hull.hpp"
 
+
+#include "tf2_ros/transform_broadcaster.h"
+
+
 #include "nav2_custom_controller/fblin_unicycle.h"
 #include "nav2_custom_controller/MPC_diffDrive_fblin.h"
 
@@ -53,7 +54,7 @@ namespace nav2_custom_controller
 class CustomController : public nav2_core::Controller
 {
 
-     public:
+    public:
 
     CustomController(); 
     ~CustomController() override = default;
@@ -66,7 +67,8 @@ class CustomController : public nav2_core::Controller
     // - tf: tf buffer pointer
     // - costmap_ros: shared pointer to costmap.
     void configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr &parent,
-                  std::string name, const std::shared_ptr<tf2_ros::Buffer> tf,
+                  std::string name,
+                  const std::shared_ptr<tf2_ros::Buffer> tf,
                   const std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros);
 
     // Function is called when controller server enters on_cleanup state. Ideally this method should clean up resources which are created for the controller.
@@ -99,138 +101,100 @@ class CustomController : public nav2_core::Controller
     // - percentage: percentage from maximum robot speed
     void setSpeedLimit(const double & speed_limit, const bool & percentage) override;   
 
-    void timer_callback();
+    void obstacle_algorithm();
 
     void publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,bool print_convex_region);
-
 
     costmap_converter_msgs::msg::ObstacleArrayMsg computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles);
 
     void polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
-    const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid);
-
-    void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
-
-    void cmd_vel_sub_callback(const geometry_msgs::msg::Twist &cmd_vel_received);
+                        const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,
+                        costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons,
+                        costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid);
 
     void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
     bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
+
     void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
+
     void compute_most_violated_constraints();
-void constraints_callback(const nav2_custom_controller_msgs::msg::MatrixMsg &received) const;
+
+    void mpc_timer();
+
+    void fblin_timer();
 
 
-    void execute_fblin();
-    void execute_MPC_node();
-   // void execute_MPC();
-
-
-    // 
-
-    void MPC();
+    
     
 
 
-     protected:
+    protected:
     
-  // Member declaration
     rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
     std::shared_ptr<tf2_ros::Buffer> tf_;
     std::string plugin_name_;
     std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
-
     rclcpp::Logger logger_{rclcpp::get_logger("CustomController")};
     rclcpp::Clock::SharedPtr clock_;
 
+    // costmap_converter declarations
     rclcpp::Node::SharedPtr intra_proc_node_;
-
     std::string costmap_converter_plugin_; //!< Define a plugin name of the costmap_converter package (costmap cells are converted to points/lines/polygons)
-
-    int costmap_converter_rate_; //!< The rate that defines how often the costmap_converter plugin processes the current costmap (the value should not be much higher than the costmap update rate)
-
-    std::string odom_topic_;
-
-    geometry_msgs::msg::PoseStamped robot_pose_;
-
-    geometry_msgs::msg::PoseStamped centroid_pose_stamped_;
-
-    nav2_costmap_2d::Costmap2D* costmap_;
-
-    nav_msgs::msg::Path global_plan_;
-    nav_msgs::msg::Path centroid_path_msg_;
-    geometry_msgs::msg::PoseStamped target_pose_;
-    geometry_msgs::msg::Twist cmd_vel_;
-    geometry_msgs::msg::TwistStamped cmd_vel;
-
-    bool path_saved_; // Flag to indicate whether the path has been saved
-
-   pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
+    pluginlib::ClassLoader<costmap_converter::BaseCostmapToPolygons> costmap_converter_loader_; //!< Load costmap converter plugins at runtime
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
+    std::string odom_topic_;
+    int costmap_converter_rate_; //!< The rate that defines how often the costmap_converter plugin processes the current costmap (the value should not be much higher than the costmap update rate)
+    double obstacle_distance_thresh_;
+
+
+    // Timers declarations
+
+    rclcpp::TimerBase::SharedPtr obstacle_algorithm_timer;
+    rclcpp::TimerBase::SharedPtr mpc_timer_;
+    rclcpp::TimerBase::SharedPtr fblin_timer_;
+
+    // Publishers declarations
+
     rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr polygon_pub_;
-    rclcpp::Publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>::SharedPtr obstacle_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr predicted_path_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr point_marker_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ref_pose_pub_;
-    rclcpp::Publisher<nav2_custom_controller_msgs::msg::MatrixMsg>::SharedPtr mpc_obstacle_constraints_pub_;
-    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
 
-
-    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
-    rclcpp::Subscription<nav2_custom_controller_msgs::msg::MatrixMsg>::SharedPtr constraints_sub_;
-
-    rclcpp::TimerBase::SharedPtr wall_timer_;
-
-    geometry_msgs::msg::TransformStamped received_tf_;
-
-    geometry_msgs::msg::PoseStamped send_pose_;
-
-
-    double obstacle_distance_thresh_;
-
-    std::vector<std::vector<float>> b_vect_;
-    std::vector<std::vector<float>> A_obst_matrix_;
-
-    std::vector<std::vector<float>> b_convex_region_vect_;
-    std::vector<std::vector<float>> A_convex_region_matrix_;
-
-
-     // decide for these either to be private members or pass them as ref
-    std::vector<std::vector<float>> A_violated_matrix_,b_violated_vect_,result_pose_stored_;
-
-    std::vector<std::vector<float>> A_most_violated_matrix_;
-    std::vector<std::vector<float>> b_most_violated_vect_;
-    float result_pose,result_centroid;
-
-    FeedbackLin feedback_lin_;
-
-    std::vector<Coordinate> m_polygon; 
-    std::vector<Coordinate> m_convexHull;
-
+    // Obstacle Algorithm declarations
 
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
-
     std::vector<geometry_msgs::msg::Point32> robot_footprint_;
     std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
-
     costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid_;
     costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
-    costmap_converter_msgs::msg::ObstacleArrayMsg final_stored_centroid_point_;
-
+    std::vector<std::vector<float>> b_vect_;
+    std::vector<std::vector<float>> A_obst_matrix_;
+    std::vector<std::vector<float>> A_violated_matrix_,b_violated_vect_,result_pose_stored_;
+    std::vector<std::vector<float>> A_most_violated_matrix_;
+    std::vector<std::vector<float>> b_most_violated_vect_;
+    std::vector<std::vector<float>> b_convex_region_vect_;
+    std::vector<std::vector<float>> A_convex_region_matrix_;
     nav2_custom_controller_msgs::msg::MatrixMsg mpc_obstacle_constraints_;
+    float result_pose,result_centroid;
+    geometry_msgs::msg::TransformStamped received_tf_;
+    nav_msgs::msg::Path centroid_path_msg_;
+    geometry_msgs::msg::PoseStamped centroid_pose_stamped_;
+    geometry_msgs::msg::PoseStamped robot_pose_;
+    bool path_saved_; // Flag to indicate whether the path has been saved
+    int index;
+    nav_msgs::msg::Path global_plan_;
+
+    geometry_msgs::msg::TwistStamped cmd_vel;
 
 
-int index;
 
     // MPC part 
 
-   // std::unique_ptr<MPC_diffDrive_fblin> MPC_;
-    MPC_diffDrive_fblin MPC_;
+    std::unique_ptr<MPC_diffDrive_fblin> MPC_;
 
     // MPC parameters
     int N_;
@@ -254,12 +218,12 @@ int index;
     std::vector<double> lb_;
     std::vector<double> ub_;
 
-
-
-    
-
+    std::vector<double> predicted_x;
+    std::vector<double> predicted_y;
+    std::vector<double> predicted_theta;
+    nav_msgs::msg::Path pathMsg;
 
 };
-} // namespace nav2_custom_controller
+} 
 
 #endif

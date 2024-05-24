@@ -82,7 +82,9 @@ def generate_launch_description():
                 'use_namespace': 'True',
                 'namespace': namespace,
                 'use_sim_time': use_sim_time,
+               # 'log_level': 'warn',
                 'params_file': param_dir}.items(),
+
         ),
 
         # Launch rviz_launch.py (part of nav2_bringup package)
