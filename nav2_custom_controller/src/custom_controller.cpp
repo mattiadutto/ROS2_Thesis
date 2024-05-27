@@ -51,14 +51,34 @@ namespace nav2_custom_controller
   CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),MPC_(std::make_unique<MPC_diffDrive_fblin>())
   { 
 
+    A_obst_matrix_.push_back({0.0,0.0});
+    b_vect_.push_back({0.0});
+    A_convex_region_matrix_.push_back({0.0,0.0});
+    b_convex_region_vect_.push_back({0.0});
+    A_most_violated_matrix_.push_back({0.0,0.0});
+    b_most_violated_vect_.push_back({0.0});
+    //mpc_obstacle_constraints_.matrix_rows.push_back({0.0,0.0});
+   // mpc_obstacle_constraints_.vector_rows.push_back({0.0,0.0});
+
+    // define a safe zone around the robot's footprint
+    robot_footprint_.resize(4);
+
+    robot_footprint_[0].x = 0.4; 
+    robot_footprint_[0].y = 0.3; 
+    robot_footprint_[1].x = 0.4;
+    robot_footprint_[1].y = -0.3;
+    robot_footprint_[2].x = -0.4;
+    robot_footprint_[2].y = 0.3;
+    robot_footprint_[3].x = -0.4;
+    robot_footprint_[3].y = -0.3;
+
+    ub_.push_back(0.0);
+    ub_.push_back(0.0);
+
+    lb_.push_back(0.0);
+    lb_.push_back(0.0);
 
 
- 
-        
-
-   
-
-   
   }
 
 
@@ -85,17 +105,19 @@ namespace nav2_custom_controller
     ////////////////////////////////////////////////
 
     // RCLCPP Timers
-    obstacle_algorithm_timer = node->create_wall_timer(std::chrono::milliseconds(20), std::bind(&CustomController::obstacle_algorithm, this));
+    obstacle_algorithm_timer = node->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&CustomController::obstacle_algorithm, this));
    // mpc_timer_ = node->create_wall_timer(std::chrono::milliseconds(200),std::bind(&CustomController::mpc_timer, this));
    // fblin_timer_ = node->create_wall_timer(std::chrono::milliseconds(10),std::bind(&CustomController::fblin_timer, this));
 
     // Publishers
-
     polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
     marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
     marker_pub_cnvx_reg_ = node ->create_publisher<visualization_msgs::msg::Marker>("convex_region_marker",10);
     point_marker_pub_ = node ->create_publisher<visualization_msgs::msg::Marker>("point_marker",10);
     predicted_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("predicted_path", 10);
+
+    // Subscribers
+    pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/scout_mini/amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
 
 
 
@@ -193,6 +215,10 @@ namespace nav2_custom_controller
     // create new instance of rclcpp:Node with name: costmap_converter
     intra_proc_node_.reset(new rclcpp::Node("costmap_converter", node->get_namespace(), rclcpp::NodeOptions()));
 
+
+    // asign the costmap as a pointer costmap_
+    costmap_ = costmap_ros_->getCostmap();
+
     try
     {
       // load the plugin
@@ -202,12 +228,12 @@ namespace nav2_custom_controller
       // initialize costmap_converter by passing nodehandle
       costmap_converter_->initialize(intra_proc_node_);
       // pass a pointer to the costmap
-      costmap_converter_->setCostmap2D(costmap_ros_->getCostmap());
+      costmap_converter_->setCostmap2D(costmap_);
       // set the rate of the plugin (it must not be much higher than costmap update rate)
       const auto rate = std::make_shared<rclcpp::Rate>((double)costmap_converter_rate_);
       // convert most recent costmap to polygons with startWroker() method
       // it also invoke compute() method of the loaded plugin that does the conversion to polygons/lines
-      costmap_converter_->startWorker(rate,costmap_ros_->getCostmap(), "True");
+      costmap_converter_->startWorker(rate,costmap_, "True");
       RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Costmap conversion plugin %s loaded.", costmap_converter_plugin_.c_str());
     }
     catch(pluginlib::PluginlibException& ex)
@@ -320,14 +346,15 @@ namespace nav2_custom_controller
   void CustomController::obstacle_algorithm()
   {
 
-    try
-    { 
+   
+  try
+  { 
 
   // get tf from map to base link
-     received_tf_ = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
+   received_tf_ = tf_->lookupTransform("map","base_link",tf2::TimePointZero);
 
-   } catch (tf2::LookupException &ex)
-   {
+  } catch (tf2::LookupException &ex)
+  {
 
     RCLCPP_WARN(rclcpp::get_logger("TF"),"Can't find base_link to map tf: %s", ex.what());
   }
@@ -354,11 +381,30 @@ namespace nav2_custom_controller
     // Translate the point
     transformed_point.x += received_tf_.transform.translation.x;
     transformed_point.y += received_tf_.transform.translation.y;
-
+                                          
     point_vect_rotated_.push_back(transformed_point);
 
 
   }
+
+
+  // Extract the four corner points of the rotated grid
+/*auto min_x_it = std::min_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
+auto max_x_it = std::max_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
+auto min_y_it = std::min_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
+auto max_y_it = std::max_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
+
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_left = *min_x_it;
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_right = *max_x_it;                                                                                                                                                               
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_left = *min_y_it;
+costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
+
+*/
+//std::cout << "Top left corner: (" << top_left.x << ", " << top_left.y << ")" << std::endl;
+//std::cout << "Top right corner: (" << top_right.x << ", " << top_right.y << ")" << std::endl;
+//std::cout << "Bottom left corner: (" << bottom_left.x << ", " << bottom_left.y << ")" << std::endl;
+//std::cout << "Bottom right corner: (" << bottom_right.x << ", " << bottom_right.y << ")" << std::endl;
+
 
   robot_footprint_rotated_.clear();
 
@@ -630,7 +676,7 @@ namespace nav2_custom_controller
 
 
 
-  // function that creates polygons/lines and publishes them as Marker msg for visualisation
+ // function that creates polygons/lines and publishes them as Marker msg for visualisation
 
   publishAsMarker(frame_id_, obstacles,false);
 
@@ -665,14 +711,14 @@ namespace nav2_custom_controller
 
   }
 
-  point_marker_pub_->publish(point_marker);
+   point_marker_pub_->publish(point_marker);
 
-  //////////////////////////////////////////////////
+//////////////////////////////////////////////////
 
   }
 
-  costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
-  {
+ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+{
 
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid;
 
@@ -717,7 +763,7 @@ namespace nav2_custom_controller
   centroid_path_msg_.poses.clear();
 
 
-  // convert ObstacleArrayMsg to Path msg of the centroid
+// convert ObstacleArrayMsg to Path msg of the centroid
 
   for (const auto &obstacle : centroid.obstacles)
   {
@@ -756,12 +802,12 @@ namespace nav2_custom_controller
   }
 
   return centroid;
-  }
+}
 
   /// #TODO: NB combine polygon_filter and computeCentroid to be filterPolygons function !!!!
   void CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
   const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
-  {
+{
 
   int index=0;
 
@@ -774,7 +820,7 @@ namespace nav2_custom_controller
     
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
    // if (distance < obstacle_distance_thresh_)
-    if(distance<1)
+    if(distance<1.0)
     {
 
       considered_centroid.obstacles.push_back(obstacle);
@@ -793,7 +839,7 @@ namespace nav2_custom_controller
   }
 
   void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
-  {
+{
 
   float slope,intercept;
   std::vector<float> rowVector;
@@ -839,11 +885,11 @@ namespace nav2_custom_controller
   A_matrix.push_back(rowVector);
   b_vect.push_back({intercept});
     
-  }
+}
 
 
   void CustomController::compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
-  {
+{
 
   // when I have horizontal line with 2 vertices only it happens that the calculated result_centroid is zero!
 
@@ -861,26 +907,26 @@ namespace nav2_custom_controller
 
   if (!A_matrix.empty() && !b_vect.empty())
   {
-
+    int iter = 0;
    // std::cout<<"current b vect"<<b_vect[b_vect.size()-1][0]<<std::endl;
-
     for (auto &point : robot_footprint)
     {
 
     //  std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
-    //  std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
-    //  std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
+      std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
+      std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
 
 
 
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
-      /*std::cout<<"pose x "<<point.x<<std::endl;
+      std::cout<<"Point: "<<iter<<std::endl;
+      std::cout<<"pose x "<<point.x<<std::endl;
       std::cout<<"pose y "<<point.y<<std::endl;
-      std::cout<<"result pose: "<<result_pose<<std::endl;
+      std::cout<<"result pose: "<<result_pose<<std::endl<<std::endl;
       std::cout<<"centroid x "<<centroid_point.x<<std::endl;
       std::cout<<"centroid y "<<centroid_point.y<<std::endl;
-      std::cout<<"result centroid: "<<result_centroid<<std::endl;  */
+      std::cout<<"result centroid: "<<result_centroid<<std::endl;  
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
         //result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
@@ -895,18 +941,19 @@ namespace nav2_custom_controller
         if(result_pose*result_centroid < 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
 
-          result_footprint_points_stored.push_back({result_pose});
+          result_footprint_points_stored.push_back({result_pose}); 
 
 
         }
 
         else if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
         {
-          result_footprint_points_stored.push_back({0});
-
+    
+          result_footprint_points_stored.push_back({0});  
+  
 
         }
-
+        iter++;
       }
 
       // if their signs are different, then the current constraint is violated by the robot
@@ -924,7 +971,6 @@ namespace nav2_custom_controller
           result_footprint_points_stored.push_back({0});
         }
       }
-
     }
 
     if (!result_footprint_points_stored.empty())
@@ -979,10 +1025,10 @@ namespace nav2_custom_controller
     }
     old_centroid_point = centroid_point;
   }
-  }
+}
 
   void CustomController::compute_most_violated_constraints()
-  {
+{
 
   float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
 
@@ -1003,6 +1049,17 @@ namespace nav2_custom_controller
 
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
+
+    // CHANGES: 27/05
+
+    if (result_pose_stored_[largest_index][0] > 0)
+    {
+      A_violated_matrix_[largest_index][0] = A_violated_matrix_[largest_index][0] * -1;
+      A_violated_matrix_[largest_index][1] = A_violated_matrix_[largest_index][1] * -1;
+      b_violated_vect_[largest_index][0] =  b_violated_vect_[largest_index][0] * -1;
+      std::cout<<"A matrix inv [] [] "<<A_violated_matrix_[largest_index][0]<<" "<<A_violated_matrix_[largest_index][1]<<std::endl;
+      std::cout<<"b vect inv "<<b_violated_vect_[largest_index][0]<<std::endl;
+    }
 
     A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
     b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
@@ -1027,22 +1084,14 @@ namespace nav2_custom_controller
                                                   // positive x map frame down and positive y frame to the right, it should be for results < 0 
 
     {
-      // invert all values // this is true and verified if map frame is right hand convention (positive x up, positive y left)
+      // invert all values
       A_matrix_col.col1 = A_matrix_col.col1 * -1;
       A_matrix_col.col2 = A_matrix_col.col2 * -1;
       b_vect_col.col1 = b_vect_col.col1 * -1;
 
-      //std::cout<<"A inverted: "<<A_matrix_col.col1<<" "<<A_matrix_col.col2<<std::endl;
-      //std::cout<<"b inverted: "<<b_vect_col.col1<<std::endl;
+
 
     }
-
-
-
-    mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
-
-    mpc_obstacle_constraints_.vector_rows.push_back(b_vect_col);
-
 
 
 
@@ -1053,12 +1102,12 @@ namespace nav2_custom_controller
 
   }
 
-  }
+}
 
 
-  // will determine if a point is inside set of constraints
-  bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector)
-  {
+ // will determine if a point is inside set of constraints
+bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector)
+{
 
   // perform a loop through A_matrix and check for each line constraint if the current point satisfies it
   // if all constraints are satisfied or violated return the bool
@@ -1108,14 +1157,14 @@ namespace nav2_custom_controller
     return true; // if at least one constraint is violated, the point does not satisfy
   }
 
+  
+  
 
-
-
-  }
+}
 
 
   void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles, bool print_convex_region)
-  {
+{
   visualization_msgs::msg::Marker line_list; // creater line_list as Marker msg
   line_list.header.frame_id = frame_id;
   line_list.header.stamp = rclcpp::Clock().now();
@@ -1243,31 +1292,15 @@ namespace nav2_custom_controller
 
       }
     }
+}
 
 
+void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose) 
+{
+  robot_pose_.pose.position.x = amcl_pose.pose.pose.position.x;
+  robot_pose_.pose.position.y = amcl_pose.pose.pose.position.y;
+}
 
-   /*  std::cout<<"A_convex_region_matrix"<<std::endl;
-
-
-  for (const auto& row : A_convex_region_matrix_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-   }
-
-
-
-  std::cout<<"b_convex_region_vect_"<<std::endl;
-
-
-  for (const auto& row : b_convex_region_vect_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  } */
-  }
 
 
   void CustomController::cleanup()
@@ -1290,6 +1323,11 @@ namespace nav2_custom_controller
   geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const geometry_msgs::msg::PoseStamped & pose,
   const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
   {
+
+    robot_pose_.pose.position.x = pose.pose.position.x;
+    robot_pose_.pose.position.y = pose.pose.position.y;
+
+
 
   //  RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Start of computeVelocityCommands");
 

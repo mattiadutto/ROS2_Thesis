@@ -124,6 +124,9 @@ class CustomController : public nav2_core::Controller
 
     void fblin_timer();
 
+    void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
+
+
 
     
     
@@ -162,8 +165,14 @@ class CustomController : public nav2_core::Controller
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_cnvx_reg_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr point_marker_pub_;
 
+    // Subscribers declaration
+
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
+
+
     // Obstacle Algorithm declarations
 
+    nav2_costmap_2d::Costmap2D* costmap_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
