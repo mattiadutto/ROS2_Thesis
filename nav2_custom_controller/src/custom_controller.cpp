@@ -1050,19 +1050,54 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
 
-    // CHANGES: 27/05
-
-    if (result_pose_stored_[largest_index][0] > 0)
-    {
-      A_violated_matrix_[largest_index][0] = A_violated_matrix_[largest_index][0] * -1;
-      A_violated_matrix_[largest_index][1] = A_violated_matrix_[largest_index][1] * -1;
-      b_violated_vect_[largest_index][0] =  b_violated_vect_[largest_index][0] * -1;
-      std::cout<<"A matrix inv [] [] "<<A_violated_matrix_[largest_index][0]<<" "<<A_violated_matrix_[largest_index][1]<<std::endl;
-      std::cout<<"b vect inv "<<b_violated_vect_[largest_index][0]<<std::endl;
-    }
+    // CHANGES 27/05
 
     A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
     b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
+
+
+    // create inflated constraint (add 2 additional lines to the main constraint line)
+    A_most_violated_matrix_inflated_1.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+    b_violated_vect_inflated_1[largest_index][0] = b_violated_vect_[largest_index][0] + 1;
+    b_most_violated_vect_inflated_1.push_back({b_violated_vect_inflated_1[largest_index][0]});
+
+    A_most_violated_matrix_inflated_2.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+    b_violated_vect_inflated_2[largest_index][0] = b_violated_vect_[largest_index][0] - 1;
+    b_most_violated_vect_inflated_2.push_back({b_violated_vect_inflated_2[largest_index][0]});
+
+
+    float point_line_distance_1,point_line_distance_2;
+    float A1,B1,C1,A2,B2,C2;
+    A1 = A_violated_matrix_[largest_index][0];
+    A2 = A_violated_matrix_[largest_index][0];
+    B1 = A_violated_matrix_[largest_index][1];
+    B2 = A_violated_matrix_[largest_index][1];
+    C1 = b_violated_vect_inflated_1[largest_index][0];
+    C2 = b_violated_vect_inflated_2[largest_index][0];
+    // (A*x+B*y-C)/sqr((A^2 + B^2))
+    point_line_distance_1 = (A1 * robot_pose_.pose.position.x + B1 * robot_pose_.pose.position.y + C1) / sqrt(pow(A1,2) + pow(B1,2));
+    point_line_distance_2 = (A2 * robot_pose_.pose.position.x + B2 * robot_pose_.pose.position.y + C2) / sqrt(pow(A2,2) + pow(B2,2));
+
+    float closest_distance = std::min(point_line_distance_1,point_line_distance_2);
+
+    if (point_line_distance_1 < point_line_distance_2)
+    {
+      // consider the inflated line 1
+    }
+    else if (point_line_distance_2 < point_line_distance_1)
+    {
+      // consider the inflated line 2
+    }
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////
+
+  //  A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
+  //  b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
    
 
     // store in custom msg to be published over ros
@@ -1078,8 +1113,9 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
     //A_matrix_col.col2 = 1;
 
 
-    
-    if(result_pose_stored_[largest_index][0] > 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot
+    // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot
+    // this inversion is needed for the correct representation of the lines inside the MPC problem formulation
+    if(result_pose_stored_[largest_index][0] > 0) 
    // if(result_pose_stored_[largest_index][0] < 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot ->  >0 is true for sim only, for real robot with 
                                                   // positive x map frame down and positive y frame to the right, it should be for results < 0 
 
