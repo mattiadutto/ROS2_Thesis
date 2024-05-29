@@ -56,7 +56,9 @@ namespace nav2_custom_controller
     A_convex_region_matrix_.push_back({0.0,0.0});
     b_convex_region_vect_.push_back({0.0});
     A_most_violated_matrix_.push_back({0.0,0.0});
+    A_most_violated_matrix_considered_.push_back({0.0,0.0});
     b_most_violated_vect_.push_back({0.0});
+    //b_most_violated_vect_considered_.push_back({0.0});
     //mpc_obstacle_constraints_.matrix_rows.push_back({0.0,0.0});
    // mpc_obstacle_constraints_.vector_rows.push_back({0.0,0.0});
 
@@ -260,7 +262,7 @@ namespace nav2_custom_controller
     double maxX = 1;
     double minY = -1;
     double maxY = 1;
-    double resolution = 0.1;
+    double resolution = 0.05;
 
     for (double x = minX; x <= maxX; x += resolution)
     {
@@ -387,25 +389,6 @@ namespace nav2_custom_controller
 
   }
 
-
-  // Extract the four corner points of the rotated grid
-/*auto min_x_it = std::min_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
-auto max_x_it = std::max_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.x < p2.x; });
-auto min_y_it = std::min_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
-auto max_y_it = std::max_element(point_vect_rotated_.begin(), point_vect_.end(), [](const auto& p1, const auto& p2) { return p1.y < p2.y; });
-
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_left = *min_x_it;
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint top_right = *max_x_it;                                                                                                                                                               
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_left = *min_y_it;
-costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
-
-*/
-//std::cout << "Top left corner: (" << top_left.x << ", " << top_left.y << ")" << std::endl;
-//std::cout << "Top right corner: (" << top_right.x << ", " << top_right.y << ")" << std::endl;
-//std::cout << "Bottom left corner: (" << bottom_left.x << ", " << bottom_left.y << ")" << std::endl;
-//std::cout << "Bottom right corner: (" << bottom_right.x << ", " << bottom_right.y << ")" << std::endl;
-
-
   robot_footprint_rotated_.clear();
 
   // roto-translate robot_footprint points with base_link
@@ -458,7 +441,9 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
   b_violated_vect_.clear();
   result_pose_stored_.clear();
   A_most_violated_matrix_.clear();
+  A_most_violated_matrix_considered_.clear();
   b_most_violated_vect_.clear();
+  b_most_violated_vect_considered_.clear();
   mpc_obstacle_constraints_.vector_rows.clear();
   mpc_obstacle_constraints_.matrix_rows.clear();
   A_obst_matrix_.clear();
@@ -490,8 +475,10 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
     }
 
     it++;
+
     // computing the most violated constraint per each polygon
     compute_most_violated_constraints();
+
   } 
 
   // consider only the points of the grid that are inside the region defined by the most violated constraints
@@ -500,7 +487,7 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
   for (const auto& point : point_vect_rotated_)
   {
 
-    if (isViolated(point,A_most_violated_matrix_,b_most_violated_vect_) == false)
+    if (isViolated(point,A_most_violated_matrix_considered_,b_most_violated_vect_considered_) == false)
     {
       point_vect_constrained_.push_back(point);
     }
@@ -624,7 +611,7 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
     std::cout << std::endl;
   }*/
 
-  bool print = false; // simple switch for printing or not the constraint matrices to console
+  bool print = true; // simple switch for printing or not the constraint matrices to console
 
   if (print == true)
   {
@@ -650,6 +637,8 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
       }
       RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
     }
+        std::cout<<""<<std::endl;
+
 
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_most_violated_matrix");
 
@@ -665,6 +654,31 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_most_violated_vect");
 
     for (const auto& row : b_most_violated_vect_)
+    {
+      for (const auto& val : row)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+    }
+  
+
+    std::cout<<""<<std::endl;
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_most_violated_matrix_considered");
+
+    for (const auto& row : A_most_violated_matrix_considered_)
+    {
+      for (const auto& val : row)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+    }
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_most_violated_vect_considered");
+
+    for (const auto& row : b_most_violated_vect_considered_)
     {
       for (const auto& val : row)
       {
@@ -913,20 +927,18 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
     {
 
     //  std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
-      std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
-      std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
-
-
+     // std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
+      //std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
 
       result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
       result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
-      std::cout<<"Point: "<<iter<<std::endl;
-      std::cout<<"pose x "<<point.x<<std::endl;
-      std::cout<<"pose y "<<point.y<<std::endl;
-      std::cout<<"result pose: "<<result_pose<<std::endl<<std::endl;
-      std::cout<<"centroid x "<<centroid_point.x<<std::endl;
-      std::cout<<"centroid y "<<centroid_point.y<<std::endl;
-      std::cout<<"result centroid: "<<result_centroid<<std::endl;  
+    //  std::cout<<"Point: "<<iter<<std::endl;
+     // std::cout<<"pose x "<<point.x<<std::endl;
+     // std::cout<<"pose y "<<point.y<<std::endl;
+     // std::cout<<"result pose: "<<result_pose<<std::endl<<std::endl;
+     // std::cout<<"centroid x "<<centroid_point.x<<std::endl;
+     // std::cout<<"centroid y "<<centroid_point.y<<std::endl;
+     // std::cout<<"result centroid: "<<result_centroid<<std::endl;  
       if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
       {
         //result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
@@ -1004,10 +1016,11 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
       
       if (all_positive || all_negative)
       {
-   //     std::cout << "All values have the same sign" << std::endl;
         count = 4;
       }
     }
+    // when this is set manually to = 4, then we only consider the robot's center without considering the footprint points
+    count = 4; 
 
     if (count == 4) // the robot's footprint violates the current constraint
     { 
@@ -1050,48 +1063,49 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
 
-    // CHANGES 27/05
+
+
+
+
+    // CHANGES 27/05 
+
+    std::vector<std::vector<float>> b_violated_vect_inflated_1,b_violated_vect_inflated_2;
 
     A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
     b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
 
 
     // create inflated constraint (add 2 additional lines to the main constraint line)
-    A_most_violated_matrix_inflated_1.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
-    b_violated_vect_inflated_1[largest_index][0] = b_violated_vect_[largest_index][0] + 1;
-    b_most_violated_vect_inflated_1.push_back({b_violated_vect_inflated_1[largest_index][0]});
+    b_violated_vect_[largest_index][0] = b_violated_vect_[largest_index][0] + 0.1;
+    b_violated_vect_inflated_1.push_back({b_violated_vect_[largest_index][0]});
+    b_violated_vect_[largest_index][0] = b_violated_vect_[largest_index][0] - 0.2;
+    b_violated_vect_inflated_2.push_back({b_violated_vect_[largest_index][0]});
 
-    A_most_violated_matrix_inflated_2.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
-    b_violated_vect_inflated_2[largest_index][0] = b_violated_vect_[largest_index][0] - 1;
-    b_most_violated_vect_inflated_2.push_back({b_violated_vect_inflated_2[largest_index][0]});
 
 
     float point_line_distance_1,point_line_distance_2;
-    float A1,B1,C1,A2,B2,C2;
-    A1 = A_violated_matrix_[largest_index][0];
-    A2 = A_violated_matrix_[largest_index][0];
-    B1 = A_violated_matrix_[largest_index][1];
-    B2 = A_violated_matrix_[largest_index][1];
-    C1 = b_violated_vect_inflated_1[largest_index][0];
-    C2 = b_violated_vect_inflated_2[largest_index][0];
-    // (A*x+B*y-C)/sqr((A^2 + B^2))
-    point_line_distance_1 = (A1 * robot_pose_.pose.position.x + B1 * robot_pose_.pose.position.y + C1) / sqrt(pow(A1,2) + pow(B1,2));
-    point_line_distance_2 = (A2 * robot_pose_.pose.position.x + B2 * robot_pose_.pose.position.y + C2) / sqrt(pow(A2,2) + pow(B2,2));
+    float A,B,C1,C2;
+    A = A_violated_matrix_[largest_index][0];
+    B = A_violated_matrix_[largest_index][1];
+    C1 = b_violated_vect_inflated_1[0][0] * -1;
+    C2 = b_violated_vect_inflated_2[0][0] * -1;
 
-    float closest_distance = std::min(point_line_distance_1,point_line_distance_2);
+    // (A*x+B*y+C)/sqr((A^2 + B^2))
+    point_line_distance_1 = abs(A * robot_pose_.pose.position.x + B * robot_pose_.pose.position.y + C1) / sqrt(pow(A,2) + pow(B,2));
+    point_line_distance_2 = abs(A * robot_pose_.pose.position.x + B * robot_pose_.pose.position.y + C2) / sqrt(pow(A,2) + pow(B,2));
 
-    if (point_line_distance_1 < point_line_distance_2)
+    if (point_line_distance_1 < point_line_distance_2 )
     {
-      // consider the inflated line 1
+      A_most_violated_matrix_considered_ =  A_most_violated_matrix_;
+      b_most_violated_vect_considered_.push_back({b_violated_vect_inflated_1[0][0]});
     }
     else if (point_line_distance_2 < point_line_distance_1)
     {
-      // consider the inflated line 2
+
+      A_most_violated_matrix_considered_ = A_most_violated_matrix_;
+      b_most_violated_vect_considered_.push_back({b_violated_vect_inflated_2[0][0]});
+
     }
-
-
-
-
 
 
 ////////////////////////////////////////////////////////////////
@@ -1107,7 +1121,8 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
 
     A_matrix_col.col1 = A_violated_matrix_[largest_index][0];
     A_matrix_col.col2 = A_violated_matrix_[largest_index][1];
-    b_vect_col.col1 = b_violated_vect_[largest_index][0];
+    b_vect_col.col1 = b_most_violated_vect_considered_[0][0];
+    //b_vect_col.col1 = b_violated_vect_[largest_index][0];
 
     // A_matrix_col.col1 = 5;
     //A_matrix_col.col2 = 1;
@@ -1129,12 +1144,11 @@ costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint bottom_right = *max_y_it;
 
     }
 
-
-
     A_violated_matrix_.clear();
     b_violated_vect_.clear();
+    b_violated_vect_inflated_1.clear();
+    b_violated_vect_inflated_2.clear();
     result_pose_stored_.clear();
-
 
   }
 

@@ -185,6 +185,8 @@ class CustomController : public nav2_core::Controller
     std::vector<std::vector<float>> A_violated_matrix_,b_violated_vect_,result_pose_stored_;
     std::vector<std::vector<float>> A_most_violated_matrix_;
     std::vector<std::vector<float>> b_most_violated_vect_;
+    std::vector<std::vector<float>> A_most_violated_matrix_considered_;
+    std::vector<std::vector<float>> b_most_violated_vect_considered_;
     std::vector<std::vector<float>> b_convex_region_vect_;
     std::vector<std::vector<float>> A_convex_region_matrix_;
     nav2_custom_controller_msgs::msg::MatrixMsg mpc_obstacle_constraints_;
