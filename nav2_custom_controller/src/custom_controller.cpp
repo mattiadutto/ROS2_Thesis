@@ -107,9 +107,11 @@ namespace nav2_custom_controller
     ////////////////////////////////////////////////
 
     // RCLCPP Timers
+
+    // #TODO make obstacle_algorithm to run faster (its 1 second now because its easier to read the log messages when debugging)
     obstacle_algorithm_timer = node->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&CustomController::obstacle_algorithm, this));
-   // mpc_timer_ = node->create_wall_timer(std::chrono::milliseconds(200),std::bind(&CustomController::mpc_timer, this));
-   // fblin_timer_ = node->create_wall_timer(std::chrono::milliseconds(10),std::bind(&CustomController::fblin_timer, this));
+   // mpc_timer_ = node->create_wall_timer(std::chrono::milliseconds(200),std::bind(&CustomController::execute_mpc, this));
+   // fblin_timer_ = node->create_wall_timer(std::chrono::milliseconds(10),std::bind(&CustomController::execute_fblin, this));
 
     // Publishers
     polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
@@ -446,6 +448,8 @@ namespace nav2_custom_controller
   b_most_violated_vect_considered_.clear();
   mpc_obstacle_constraints_.vector_rows.clear();
   mpc_obstacle_constraints_.matrix_rows.clear();
+  mpc_obstacle_constraints_matrix_.resize(0, 0);
+  mpc_obstacle_constraints_vector_.resize(0, 0);
   A_obst_matrix_.clear();
   b_vect_.clear();
   stored_centroid_point_.obstacles.clear();
@@ -459,7 +463,7 @@ namespace nav2_custom_controller
     {
 
       calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_rotated_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
       // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
@@ -471,7 +475,7 @@ namespace nav2_custom_controller
       auto last_point = obstacle.polygon.points.end();  
       auto prev_point = std::prev(last_point, 2);  
       calcLineEquation(*prev_point,obstacle.polygon.points.front(),A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_rotated_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
     it++;
@@ -480,6 +484,24 @@ namespace nav2_custom_controller
     compute_most_violated_constraints();
 
   } 
+
+  // store in Eigen matrix and vector the most violated constraints
+
+  // Extract number of rows
+  size_t num_rows = mpc_obstacle_constraints_.matrix_rows.size();
+  mpc_obstacle_constraints_matrix_.resize(num_rows, 2);
+  mpc_obstacle_constraints_vector_.resize(num_rows);
+
+  for (size_t i = 0; i < num_rows; ++i)
+  {
+    // Copy data from matrix rows
+    mpc_obstacle_constraints_matrix_(i, 0) = mpc_obstacle_constraints_.matrix_rows[i].col1;
+    mpc_obstacle_constraints_matrix_(i, 1) = mpc_obstacle_constraints_.matrix_rows[i].col2;
+    
+    // Copy data from vector rows
+    mpc_obstacle_constraints_vector_(i) = mpc_obstacle_constraints_.vector_rows[i].col1;
+
+  }
 
   // consider only the points of the grid that are inside the region defined by the most violated constraints
   point_vect_constrained_.clear();
@@ -902,7 +924,7 @@ namespace nav2_custom_controller
 }
 
 
-  void CustomController::compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
+  void CustomController::compute_violated_constraints(const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
 {
 
   // when I have horizontal line with 2 vertices only it happens that the calculated result_centroid is zero!
@@ -913,25 +935,22 @@ namespace nav2_custom_controller
   old_centroid_point.x = 0;
   old_centroid_point.y = 0;
 
-  std::vector<geometry_msgs::msg::Point32> robot_footprint = robot_footprint_;
 
   std::vector<float> result_footprint_points_stored;
   result_footprint_points_stored.clear();
 
+  bool violated = false;
+
 
   if (!A_matrix.empty() && !b_vect.empty())
   {
-    int iter = 0;
-   // std::cout<<"current b vect"<<b_vect[b_vect.size()-1][0]<<std::endl;
-    for (auto &point : robot_footprint)
-    {
-
+ 
     //  std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
      // std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
       //std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
 
-      result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
-      result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
+    result_pose = (A_matrix[A_matrix.size()-1][0] * robot_pose_.pose.position.x + A_matrix[A_matrix.size()-1][1] * robot_pose_.pose.position.y) - b_vect[b_vect.size()-1][0];
+    result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
     //  std::cout<<"Point: "<<iter<<std::endl;
      // std::cout<<"pose x "<<point.x<<std::endl;
      // std::cout<<"pose y "<<point.y<<std::endl;
@@ -939,8 +958,8 @@ namespace nav2_custom_controller
      // std::cout<<"centroid x "<<centroid_point.x<<std::endl;
      // std::cout<<"centroid y "<<centroid_point.y<<std::endl;
      // std::cout<<"result centroid: "<<result_centroid<<std::endl;  
-      if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
-      {
+    if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
+    {
         //result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
         //result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
 
@@ -953,20 +972,17 @@ namespace nav2_custom_controller
         if(result_pose*result_centroid < 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
 
-          result_footprint_points_stored.push_back({result_pose}); 
-
+          violated = true;
 
         }
 
         else if (result_pose*result_centroid > 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
         {
     
-          result_footprint_points_stored.push_back({0});  
-  
+          violated = false;  
 
         }
-        iter++;
-      }
+    }
 
       // if their signs are different, then the current constraint is violated by the robot
      // if their product is 0 it means that the centroid lies on the line (2 points line)
@@ -975,54 +991,16 @@ namespace nav2_custom_controller
       {
         if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
         {
-          result_footprint_points_stored.push_back({result_pose});
-
+          violated = true;
         }
         else if (result_pose * result_centroid > 0)
         {
-          result_footprint_points_stored.push_back({0});
+          violated = false;
         }
       }
-    }
+    
 
-    if (!result_footprint_points_stored.empty())
-    {
-
-  //  std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3]<<std::endl;;
-
-    // Check if all values have the same sign
-      bool all_positive = true;
-      bool all_negative = true;
-
-      for (float value : result_footprint_points_stored)
-      {
-        if (value > 0)
-        {
-          all_negative = false;
-        }
-        else if (value < 0)
-        {
-          all_positive = false;
-        }
-        else if ( value == 0)
-        {
-          all_negative = false;
-          all_positive = false;
-        }
-      }
-
-    // If all values are either positive or negative, the product will be positive
-
-      
-      if (all_positive || all_negative)
-      {
-        count = 4;
-      }
-    }
-    // when this is set manually to = 4, then we only consider the robot's center without considering the footprint points
-    count = 4; 
-
-    if (count == 4) // the robot's footprint violates the current constraint
+    if (violated == true) // robot's center is in the opposite half-plane relating to the obstacle centroid
     { 
 
       A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
@@ -1043,26 +1021,30 @@ namespace nav2_custom_controller
   void CustomController::compute_most_violated_constraints()
 {
 
-  float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
+ // float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
 
-  int largest_index = 0;
+ // int largest_index = 0;
 
-  for (size_t row = 0; row < result_pose_stored_.size(); row++)
-  {
+  //for (size_t row = 0; row < result_pose_stored_.size(); row++)
+ // {
 
     // was > before originally
-    if(result_pose_stored_[row][0] > largest) // with < it considers the least violated constraint
-    {
-      largest = result_pose_stored_[row][0];
-      largest_index = row;
-    }
+  //  if(result_pose_stored_[row][0] > largest) // with < it considers the least violated constraint
+   // {
+   //   largest = result_pose_stored_[row][0];
+   //   largest_index = row;
+   // }
 
-  }
+ // }
+
+
 
 
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
 
+
+    // changes 30/05
 
 
 
@@ -1143,6 +1125,9 @@ namespace nav2_custom_controller
 
 
     }
+
+    mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
+    mpc_obstacle_constraints_.vector_rows.push_back(b_vect_col);
 
     A_violated_matrix_.clear();
     b_violated_vect_.clear();
@@ -1425,52 +1410,45 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
   // Static variable to store the last call time
   static auto last_call_time = std::chrono::steady_clock::now();
 
-  fblin_timer();
+  // Compute feedback_linearization
+  execute_fblin();
 
     // Get the current time
   auto now = std::chrono::steady_clock::now();
 
-    // Check if 200 ms have passed since the last call
-
-
-
-
+  // Check if 200 ms have passed since the last call
   if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time).count() >= 200)
   {
 
-   //   RCLCPP_INFO(rclcpp::get_logger("CustomController"),"MPC optim started: %.2f",robot_pose_.pose.position.x);
-      // Define a duration type for milliseconds
+    // RCLCPP_INFO(rclcpp::get_logger("CustomController"),"MPC optim started: %.2f",robot_pose_.pose.position.x);
+    // Define a duration type for milliseconds
     using Milliseconds = std::chrono::milliseconds;
 
-       // Calculate the time between consecutive calls
+    // Calculate the time between consecutive calls
     auto interval_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time);
     double interval_duration_ms = static_cast<double>(interval_duration.count());
 
-      // Print the duration between consecutive calls
+    // Print the duration between consecutive calls
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Actual MPC sampling time: %.3f ms", interval_duration_ms);
 
-      // Get the current time before executing the function
+    // Get the current time before executing the function
     auto start_time = std::chrono::steady_clock::now();
 
-      // Call mpc_timer
-    mpc_timer();
+    // Execute the MPC
+    execute_mpc();
 
-      // Get the current time after executing the function
+    // Get the current time after executing the function
     auto end_time = std::chrono::steady_clock::now();
 
-      // Calculate the duration of execution in milliseconds
+    // Calculate the duration of execution in milliseconds
     auto duration = std::chrono::duration_cast<Milliseconds>(end_time - start_time);
 
     double duration_ms = static_cast<double>(duration.count());
 
-      // Print the duration in milliseconds
+    // Print the duration in milliseconds
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC optimisation time: %.3f ms", duration_ms);
 
-    //  RCLCPP_INFO(rclcpp::get_logger("CustomController"),"MPC optim finished: %.2f",robot_pose_.pose.position.x);
-
-
-
-      // Reset the last call time
+    // Reset the last call time
     last_call_time = now;
   }
 
@@ -1498,18 +1476,18 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
   return cmd_vel;
   }
 
-  void CustomController::mpc_timer() // every 200ms
+  void CustomController::execute_mpc() // every 200ms
   {
 
 
 
-  // if(obst_matrix.size()!=0) // if there are obstacle constraints, set them in MPC class
-  // {
+   if(mpc_obstacle_constraints_matrix_.size()!=0) // if there are obstacle constraints, set them in MPC class
+   {
 
-  //   MPC->set_obstacle_matrices(obst_matrix,obst_vector);
-  //  RCLCPP_INFO(this->get_logger(), "Obstacle Constraints sent to MPC.");
+    MPC_->set_obstacle_matrices(mpc_obstacle_constraints_matrix_,mpc_obstacle_constraints_vector_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Obstacle Constraints sent to MPC.");
 
-  // }
+   }
 
   // Define a duration type for milliseconds
     using Milliseconds = std::chrono::milliseconds;
@@ -1576,7 +1554,7 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 
   }
 
-  void CustomController::fblin_timer()
+  void CustomController::execute_fblin()
   {
     
   MPC_->executeLinearizationController();

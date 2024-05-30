@@ -262,7 +262,7 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
 
 
 
-   // compute_ObstacleConstraint(_obst_matrix,_obst_vector);
+    compute_ObstacleConstraint(_obst_matrix,_obst_vector);
 
    // compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
 
@@ -270,14 +270,7 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
     // modifyConstraint should be called after the initial call ! NB!
 
     std::vector<GRBConstr> wheelVelocityConstrain;
-  //  if (!_solver->addConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
-  //  {
-  //      std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
-  //      return false;
-  //  }
-
-
-     if (wheelVelocityConstrain.size()==0) {
+    if (wheelVelocityConstrain.size()==0) {
         if (!_solver->addConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
         {
             std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
@@ -614,8 +607,8 @@ void MPC_diffDrive_fblin::compute_ObstacleConstraint(const Eigen::MatrixXd& matr
    // _fblin_states(0,0) = _actMPCstate(0)+0.5;
    // _fblin_states(1,0) = _actMPCstate(1)+0.5;
 
-    _fblin_states(0,0) = _actMPCstate(0);
-    _fblin_states(1,0) = _actMPCstate(1);
+    _fblin_states(0,0) = _actMPCstate(0); // considers xp distance
+    _fblin_states(1,0) = _actMPCstate(1); // considers yp distance
 
     for (int k = 0; k < _N + 1; k++)
     {

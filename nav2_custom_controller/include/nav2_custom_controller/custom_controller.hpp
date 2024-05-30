@@ -116,13 +116,13 @@ class CustomController : public nav2_core::Controller
 
     bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
 
-    void compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
+    void compute_violated_constraints(const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
 
     void compute_most_violated_constraints();
 
-    void mpc_timer();
+    void execute_mpc();
 
-    void fblin_timer();
+    void execute_fblin();
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
 
@@ -190,6 +190,9 @@ class CustomController : public nav2_core::Controller
     std::vector<std::vector<float>> b_convex_region_vect_;
     std::vector<std::vector<float>> A_convex_region_matrix_;
     nav2_custom_controller_msgs::msg::MatrixMsg mpc_obstacle_constraints_;
+    Eigen::MatrixXd mpc_obstacle_constraints_matrix_;
+    Eigen::VectorXd mpc_obstacle_constraints_vector_;
+
     float result_pose,result_centroid;
     geometry_msgs::msg::TransformStamped received_tf_;
     nav_msgs::msg::Path centroid_path_msg_;
@@ -200,6 +203,7 @@ class CustomController : public nav2_core::Controller
     nav_msgs::msg::Path global_plan_;
 
     geometry_msgs::msg::TwistStamped cmd_vel;
+
 
 
 
