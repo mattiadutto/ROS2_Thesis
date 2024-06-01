@@ -58,7 +58,8 @@ local_costmap:
       width: 3
       height: 3
       resolution: 0.05
-      footprint: "[ [0.245, 0.315], [0.245, -0.315], [-0.245, 0.315], [-0.245, -0.315] ]"
+      # robot dimensions: width: 580mm; length: 
+      footprint: "[ [0.306, 0.290], [0.306, -0.290], [-0.306, 0.290], [-0.306, -0.290] ]"
       plugins: ["obstacle_layer", "voxel_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
