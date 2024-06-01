@@ -62,17 +62,43 @@ namespace nav2_custom_controller
     //mpc_obstacle_constraints_.matrix_rows.push_back({0.0,0.0});
    // mpc_obstacle_constraints_.vector_rows.push_back({0.0,0.0});
 
-    // define a safe zone around the robot's footprint
-    robot_footprint_.resize(4);
+    // define a safe zone around the robot's footprint 
+    robot_footprint_.resize(8);
+    costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint robot_footprint_point;
 
-    robot_footprint_[0].x = 0.4; 
-    robot_footprint_[0].y = 0.3; 
-    robot_footprint_[1].x = 0.4;
-    robot_footprint_[1].y = -0.3;
-    robot_footprint_[2].x = -0.4;
-    robot_footprint_[2].y = 0.3;
-    robot_footprint_[3].x = -0.4;
-    robot_footprint_[3].y = -0.3;
+
+    robot_footprint_point.x = 0.306; 
+    robot_footprint_point.y = 0.290;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = 0.306;
+    robot_footprint_point.y = 0;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = 0.306;
+    robot_footprint_point.y = -0.290;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = -0.306;
+    robot_footprint_point.y = 0.290;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = -0.306;
+    robot_footprint_point.y = 0;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = -0.306;
+    robot_footprint_point.y = -0.290;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = 0;
+    robot_footprint_point.y = 0.290;
+    robot_footprint_.push_back(robot_footprint_point); 
+
+    robot_footprint_point.x = 0;
+    robot_footprint_point.y = -0.290;
+    robot_footprint_.push_back(robot_footprint_point); 
+
 
     ub_.push_back(0.0);
     ub_.push_back(0.0);
@@ -402,7 +428,7 @@ namespace nav2_custom_controller
     tf2::fromMsg(received_tf_.transform.rotation, quat);
     tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-    geometry_msgs::msg::Point32 transformed_point;
+    costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
 
      // Rotate the point around the Z-axis
     double cos_theta = cos(yaw);
@@ -874,7 +900,7 @@ namespace nav2_custom_controller
 
   }
 
-  void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
+void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
 {
 
   float slope,intercept;
@@ -924,7 +950,7 @@ namespace nav2_custom_controller
 }
 
 
-  void CustomController::compute_violated_constraints(const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
+void CustomController::compute_violated_constraints(const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
 {
 
   // when I have horizontal line with 2 vertices only it happens that the calculated result_centroid is zero!
@@ -1018,125 +1044,160 @@ namespace nav2_custom_controller
   }
 }
 
-  void CustomController::compute_most_violated_constraints()
+void CustomController::compute_most_violated_constraints()
 {
-
- // float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
-
- // int largest_index = 0;
-
-  //for (size_t row = 0; row < result_pose_stored_.size(); row++)
- // {
-
-    // was > before originally
-  //  if(result_pose_stored_[row][0] > largest) // with < it considers the least violated constraint
-   // {
-   //   largest = result_pose_stored_[row][0];
-   //   largest_index = row;
-   // }
-
- // }
-
-
-
-
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
+    // changes 31/05
+    std::vector<std::vector<float>> A_violated_matrix_single_row, b_violated_vect_single_row;
+    std::vector<float> distance_vect;
+    std::vector<int> row_index_vect;
+    for (int row = 0; row < A_violated_matrix_.size(); row++)
+    {
+
+      A_violated_matrix_single_row.push_back({A_violated_matrix_[row][0],A_violated_matrix_[row][1]});
+      b_violated_vect_single_row.push_back({b_violated_vect_[row][0]});
+
+      int num_points = robot_footprint_rotated_.size();
+      int count = 0;
+
+      // check for the given line constraint if all footprint points and center of robot are in the same half-plane
+      for (const auto &point : robot_footprint_rotated_) 
+      {
+        if(isViolated(point,A_violated_matrix_single_row,b_violated_vect_single_row) == false)
+        {
+          // current footprint point is in the same half-plane as the center
+          count++;
+        }
+      }
+
+      if (count == num_points) // all points are in the same half-plane
+      {
+        // we can continue to compute the distance to the considered line from all footprint points and pick up the shortest distance
+        for (const auto &point : robot_footprint_rotated_)
+        {
+          // compute the distance from each point and store in vector
+          distance_vect.push_back(compute_distance_to_violated_constraint(point.x,point.y,row,b_violated_vect_single_row[0][0]));
+        }
+
+        // loop through the vector of distances and save the shortest distance
+        float shortest_distance = std::numeric_limits<float>::max(); // Initialize with the largest possible value
+
+        for (int i = 0; i < distance_vect.size(); i++)
+        {
+          if(distance_vect[i] < shortest_distance) 
+          {
+            shortest_distance = distance_vect[i];
+          }
+        }
+
+        if (shortest_distance > 0.05)
+        {
+          row_index_vect.push_back(row); // save the row corresponding to that line constraint in a row_index vector
+        }
+      }
+    }
+
+    A_violated_matrix_single_row.clear();
+    b_violated_vect_single_row.clear();
+    distance_vect.clear();
 
 
-    // changes 30/05
+    // based on how many constraints are saved in row_index 
+    // if we have 2 or more, we need to pick either of them (lets say the first index)
+    // and save that row index elements from violated matrix and vector to the most violated 
 
-
-
-
-    // CHANGES 27/05 
+   
+    // at the end of that function we clear row_index vector
 
     std::vector<std::vector<float>> b_violated_vect_inflated_1,b_violated_vect_inflated_2;
 
-    A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
-    b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
-
-
-    // create inflated constraint (add 2 additional lines to the main constraint line)
-    b_violated_vect_[largest_index][0] = b_violated_vect_[largest_index][0] + 0.1;
-    b_violated_vect_inflated_1.push_back({b_violated_vect_[largest_index][0]});
-    b_violated_vect_[largest_index][0] = b_violated_vect_[largest_index][0] - 0.2;
-    b_violated_vect_inflated_2.push_back({b_violated_vect_[largest_index][0]});
-
-
-
-    float point_line_distance_1,point_line_distance_2;
-    float A,B,C1,C2;
-    A = A_violated_matrix_[largest_index][0];
-    B = A_violated_matrix_[largest_index][1];
-    C1 = b_violated_vect_inflated_1[0][0] * -1;
-    C2 = b_violated_vect_inflated_2[0][0] * -1;
-
-    // (A*x+B*y+C)/sqr((A^2 + B^2))
-    point_line_distance_1 = abs(A * robot_pose_.pose.position.x + B * robot_pose_.pose.position.y + C1) / sqrt(pow(A,2) + pow(B,2));
-    point_line_distance_2 = abs(A * robot_pose_.pose.position.x + B * robot_pose_.pose.position.y + C2) / sqrt(pow(A,2) + pow(B,2));
-
-    if (point_line_distance_1 < point_line_distance_2 )
+    if (!row_index_vect.empty())
     {
-      A_most_violated_matrix_considered_ =  A_most_violated_matrix_;
-      b_most_violated_vect_considered_.push_back({b_violated_vect_inflated_1[0][0]});
-    }
-    else if (point_line_distance_2 < point_line_distance_1)
-    {
-
-      A_most_violated_matrix_considered_ = A_most_violated_matrix_;
-      b_most_violated_vect_considered_.push_back({b_violated_vect_inflated_2[0][0]});
-
-    }
+      A_most_violated_matrix_.push_back({A_violated_matrix_[row_index_vect[0]][0],A_violated_matrix_[row_index_vect[0]][1]});
+      b_most_violated_vect_.push_back({b_violated_vect_[row_index_vect[0]][0]});
 
 
-////////////////////////////////////////////////////////////////
 
-  //  A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
-  //  b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
-   
+      // create inflated constraint (add 2 additional lines to the main constraint line)
+      b_violated_vect_[row_index_vect[0]][0] = b_violated_vect_[row_index_vect[0]][0] + 0.1;
+      b_violated_vect_inflated_1.push_back({b_violated_vect_[row_index_vect[0]][0]});
+      b_violated_vect_[row_index_vect[0]][0] = b_violated_vect_[row_index_vect[0]][0] - 0.2;
+      b_violated_vect_inflated_2.push_back({b_violated_vect_[row_index_vect[0]][0]});
 
-    // store in custom msg to be published over ros
+      // in a while loop, inflate on both sides the line by 0.1 each time (having 2 new b_vectors inflated), then take the first inflated  vector and compute
+      // the  distance of that new line to the original line and check if that distance is 0.1 if that distance is not 0.1 then the while loop continues
+      // and increments again by 0.1 the b_vector on both sides until 0.1 distance is reached then out of the while loop the code continues like below
 
-    nav2_custom_controller_msgs::msg::ColumnMsg A_matrix_col;
-    nav2_custom_controller_msgs::msg::ColumnMsg b_vect_col;
+      float point_line_distance_1,point_line_distance_2;
 
-    A_matrix_col.col1 = A_violated_matrix_[largest_index][0];
-    A_matrix_col.col2 = A_violated_matrix_[largest_index][1];
-    b_vect_col.col1 = b_most_violated_vect_considered_[0][0];
-    //b_vect_col.col1 = b_violated_vect_[largest_index][0];
+      point_line_distance_1 = compute_distance_to_violated_constraint(robot_pose_.pose.position.x,robot_pose_.pose.position.y,row_index_vect[0],b_violated_vect_inflated_1[0][0]);
 
-    // A_matrix_col.col1 = 5;
-    //A_matrix_col.col2 = 1;
+      point_line_distance_2 = compute_distance_to_violated_constraint(robot_pose_.pose.position.x,robot_pose_.pose.position.y,row_index_vect[0],b_violated_vect_inflated_2[0][0]);
+
+      if (point_line_distance_1 < point_line_distance_2 )
+      {
+        A_most_violated_matrix_considered_ =  A_most_violated_matrix_;
+        b_most_violated_vect_considered_.push_back({b_violated_vect_inflated_1[0][0]});
+      }
+      else if (point_line_distance_2 < point_line_distance_1)
+      {
+
+        A_most_violated_matrix_considered_ = A_most_violated_matrix_;
+        b_most_violated_vect_considered_.push_back({b_violated_vect_inflated_2[0][0]});
+
+      }
+
+      nav2_custom_controller_msgs::msg::ColumnMsg A_matrix_col;
+      nav2_custom_controller_msgs::msg::ColumnMsg b_vect_col;
+
+      A_matrix_col.col1 = A_violated_matrix_[row_index_vect[0]][0];
+      A_matrix_col.col2 = A_violated_matrix_[row_index_vect[0]][1];
+      b_vect_col.col1 = b_most_violated_vect_considered_[0][0];
+
 
 
     // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot
     // this inversion is needed for the correct representation of the lines inside the MPC problem formulation
-    if(result_pose_stored_[largest_index][0] > 0) 
+
+      if(result_pose_stored_[row_index_vect[0]][0] > 0) 
    // if(result_pose_stored_[largest_index][0] < 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot ->  >0 is true for sim only, for real robot with 
                                                   // positive x map frame down and positive y frame to the right, it should be for results < 0 
 
-    {
+      {
       // invert all values
-      A_matrix_col.col1 = A_matrix_col.col1 * -1;
-      A_matrix_col.col2 = A_matrix_col.col2 * -1;
-      b_vect_col.col1 = b_vect_col.col1 * -1;
+        A_matrix_col.col1 = A_matrix_col.col1 * -1;
+        A_matrix_col.col2 = A_matrix_col.col2 * -1;
+        b_vect_col.col1 = b_vect_col.col1 * -1;
 
+      }
 
-
+      mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
+      mpc_obstacle_constraints_.vector_rows.push_back(b_vect_col);
     }
-
-    mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
-    mpc_obstacle_constraints_.vector_rows.push_back(b_vect_col);
 
     A_violated_matrix_.clear();
     b_violated_vect_.clear();
     b_violated_vect_inflated_1.clear();
     b_violated_vect_inflated_2.clear();
     result_pose_stored_.clear();
+    row_index_vect.clear();
 
   }
 
+}
+
+// b_vector_row_value is the row, col value of b_vector (that value corresponds to the intercept of the line)
+float CustomController::compute_distance_to_violated_constraint(const float &x_coord, const float &y_coord, const int &matrix_row_index, const float &b_vector_row_value )
+{
+  
+  // (A*x+B*y+C)/sqr((A^2 + B^2)) - distance of a point to a line
+  float A,B,C;
+  A = A_violated_matrix_[matrix_row_index][0];
+  B = A_violated_matrix_[matrix_row_index][1];
+  C = b_vector_row_value * -1;
+
+  return abs((A * x_coord + B * y_coord + C) / sqrt(pow(A,2) + pow(B,2)));;
 }
 
 

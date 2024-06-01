@@ -120,11 +120,14 @@ class CustomController : public nav2_core::Controller
 
     void compute_most_violated_constraints();
 
+    float compute_distance_to_violated_constraint(const float &x_coord, const float &y_coord, const int &matrix_row_index, const float &b_vector_row_value);
+
     void execute_mpc();
 
     void execute_fblin();
 
     void pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose);
+
 
 
 
@@ -176,8 +179,9 @@ class CustomController : public nav2_core::Controller
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_rotated_;
     std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> point_vect_constrained_;
-    std::vector<geometry_msgs::msg::Point32> robot_footprint_;
-    std::vector<geometry_msgs::msg::Point32> robot_footprint_rotated_;
+   // std::vector<geometry_msgs::msg::Point32> robot_footprint_;
+    std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> robot_footprint_;
+    std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint>robot_footprint_rotated_;
     costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid_;
     costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
     std::vector<std::vector<float>> b_vect_;
