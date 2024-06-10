@@ -446,7 +446,7 @@ void MPC_diffDrive_fblin::set_referenceRobotState(const Eigen::VectorXd& refRobo
         // the path and and store them in refMPCstate
         // refRobotState is coming from the given path
 
-        // reference is set to x,y not xp,yp (check fblin_unicycle.cpp)
+        // (check fblin_unicycle.cpp)
         _fblinController->reference_transformation(_refRobotState(0), _refRobotState(1),
                                                    _refRobotState(2), _refMPCstate(0), _refMPCstate(1));
 

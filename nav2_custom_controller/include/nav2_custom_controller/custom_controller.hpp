@@ -114,13 +114,18 @@ class CustomController : public nav2_core::Controller
 
     void calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect);
 
-    bool isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector);
+    void inflate_constraint(const std::vector<float> &A_matrix_row,const float &b_vect,const geometry_msgs::msg::Point32 &centroid);
+
+    bool isViolated(const geometry_msgs::msg::Point32 &point,const std::vector<float> &A_matrix_row,const float &b_vect);
 
     void compute_violated_constraints(const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect);
 
     void compute_most_violated_constraints();
 
-    float compute_distance_to_violated_constraint(const float &x_coord, const float &y_coord, const int &matrix_row_index, const float &b_vector_row_value);
+    float compute_distance_between_lines(const std::vector<float> &A_matrix_row,const float &b_vect,const float &b_vect_inflated);
+
+
+    float compute_distance_to_violated_constraint(const float &x_coord, const float &y_coord, const std::vector<float> &A_matrix_row,const float &b_vect);
 
     void execute_mpc();
 
@@ -185,6 +190,7 @@ class CustomController : public nav2_core::Controller
     costmap_converter_msgs::msg::ObstacleArrayMsg considered_centroid_;
     costmap_converter_msgs::msg::ObstacleArrayMsg stored_centroid_point_;
     std::vector<std::vector<float>> b_vect_;
+    std::vector<std::vector<float>> b_vect_inflated_;
     std::vector<std::vector<float>> A_obst_matrix_;
     std::vector<std::vector<float>> A_violated_matrix_,b_violated_vect_,result_pose_stored_;
     std::vector<std::vector<float>> A_most_violated_matrix_;
