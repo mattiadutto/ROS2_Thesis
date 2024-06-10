@@ -156,7 +156,8 @@ class CustomController : public nav2_core::Controller
     std::shared_ptr<costmap_converter::BaseCostmapToPolygons> costmap_converter_; //!< Store the current costmap_converter  
     std::string odom_topic_;
     int costmap_converter_rate_; //!< The rate that defines how often the costmap_converter plugin processes the current costmap (the value should not be much higher than the costmap update rate)
-    double obstacle_distance_thresh_;
+    float obstacle_distance_thresh_;
+    float inflation_radius_;
 
 
     // Timers declarations

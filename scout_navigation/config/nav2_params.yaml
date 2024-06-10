@@ -307,9 +307,10 @@ controller_server:
       costmap_converter_rate: 5
       odom_topic: <robot_namespace>/odom
 
-      obstacle_distance_threshold: 1.0
+      obstacle_distance_threshold: 1.5
+      inflation_radius: 0.1
 
-      prediction_horizon: 20
+      prediction_horizon: 2
       mpc_sampling_time: 0.2
       Q: 2.0
       R: 1.0

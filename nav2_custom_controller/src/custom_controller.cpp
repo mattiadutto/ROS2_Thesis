@@ -166,7 +166,10 @@ namespace nav2_custom_controller
 
     declare_parameter_if_not_declared(node, plugin_name_ + ".obstacle_distance_threshold", rclcpp::ParameterValue(0.2));
 
-    /*  // MPC parameters
+    declare_parameter_if_not_declared(node, plugin_name_ + ".inflation_radius", rclcpp::ParameterValue(0.1));
+
+
+    // MPC parameters
 
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".prediction_horizon", rclcpp::ParameterValue(10));
@@ -214,15 +217,14 @@ namespace nav2_custom_controller
 
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".base_width", rclcpp::ParameterValue(0.4));
-  */
+  
     // Set parameters from yaml file
     node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
     node->get_parameter(plugin_name_ + ".costmap_converter_rate",costmap_converter_rate_); 
     node->get_parameter(plugin_name_ + ".odom_topic",odom_topic_);
     node->get_parameter(plugin_name_ + ".obstacle_distance_threshold",obstacle_distance_thresh_);
-
-    // #TODO: I get segmentation fault if I include this block of code
-    /*
+    node->get_parameter(plugin_name_ + ".inflation_radius",inflation_radius_);
+    
     node->get_parameter(plugin_name_ + ".prediction_horizon",N_);
     node->get_parameter(plugin_name_ + ".mpc_sampling_time",Ts_MPC_);
     node->get_parameter(plugin_name_ + ".Q",q_);
@@ -238,7 +240,7 @@ namespace nav2_custom_controller
     wMin_ = -wMax_;
     node->get_parameter(plugin_name_ + ".wheel_radius",R_);
     node->get_parameter(plugin_name_ + ".base_width",d_);
-  */
+  
 
     ////////////////////////////////////////////////
     // costmap_converter plugin load
@@ -287,10 +289,10 @@ namespace nav2_custom_controller
     point_vect_.clear();
     point_vect_rotated_.clear();
 
-    double minX = -1;
-    double maxX = 1;
-    double minY = -1;
-    double maxY = 1;
+    double minX = -obstacle_distance_thresh_;
+    double maxX = obstacle_distance_thresh_;
+    double minY = -obstacle_distance_thresh_;
+    double maxY = obstacle_distance_thresh_;
     double resolution = 0.05;
 
     for (double x = minX; x <= maxX; x += resolution)
@@ -311,35 +313,6 @@ namespace nav2_custom_controller
     index=1;
 
     ////////////////////////////////////////////////////////
-
-
-    // MPC PART
-
-    // #TODO: make parameters to be loaded from yaml file
-
-     // MPC parameters
-    int N_ = 2;
-    double Ts_MPC_ = 0.2; // need to automatically change the wall timer duration ! for now change manually
-
-    // Low Q, High R - > prioritizes minimizing control effort, possibly at the expense of tracking performance.
-    // High Q, Low R - > prioritizes state tracking accuracy over control effort, leading to aggressive control actions.
-    double q_ = 4;
-    double r_ = 10; 
-    int maxInfeasibleSolution = 2; 
-    
-    // Feedback linearization parameters
-    double p_dist_ = 0.2;
-    double Ts_fblin_ = 0.01;
-    
-    // Robot parameters
-    // robot top speed is 3 m/s, and the wheel radius is 0.08m, so the wMax for top speed is 37.5
-    double wMax_ = 10; // 
-    double wMin_ = -wMax_;
-    double R_ = 0.08;
-    double d_ = 0.4;
-
-    std::vector<double> lb_(2, -100.0);
-    std::vector<double> ub_(2, +100.0);
 
     predicted_x.resize((N_+1),0);
     predicted_y.resize((N_+1),0);
@@ -376,6 +349,9 @@ namespace nav2_custom_controller
 
   void CustomController::obstacle_algorithm()
   {
+
+    RCLCPP_INFO(rclcpp::get_logger("inflation_radius_"), "%f ", inflation_radius_);
+
 
 
    
@@ -921,7 +897,7 @@ namespace nav2_custom_controller
     
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
    // if (distance < obstacle_distance_thresh_)
-    if(distance<1.0)
+    if(distance<obstacle_distance_thresh_)
     {
 
       considered_centroid.obstacles.push_back(obstacle);
@@ -1082,10 +1058,10 @@ void CustomController::inflate_constraint(const std::vector<float> &A_matrix_row
   b_violated_vect_inflated_2 = b_vect;
   float distance_between_lines = 0;
 
-  while (distance_between_lines < 0.1)
+  while (distance_between_lines < inflation_radius_)
   {
-    b_violated_vect_inflated_1 = b_violated_vect_inflated_1 + 0.1; // add inflation
-    b_violated_vect_inflated_2 = b_violated_vect_inflated_2 - 0.1; // add inflation
+    b_violated_vect_inflated_1 = b_violated_vect_inflated_1 + 0.025; // add inflation
+    b_violated_vect_inflated_2 = b_violated_vect_inflated_2 - 0.025; // add inflation
 
     // send inflated line to function and compute distance between inflated line and original line
     distance_between_lines = compute_distance_between_lines(A_matrix_row,b_vect,b_violated_vect_inflated_1);
@@ -1406,8 +1382,8 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
     // Get the current time
   auto now = std::chrono::steady_clock::now();
 
-  // Check if 200 ms have passed since the last call
-  if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time).count() >= 200)
+  // Check if Ts_MPC_*1000 ms have passed since the last call
+  if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time).count() >= Ts_MPC_*1000)
   {
 
     // RCLCPP_INFO(rclcpp::get_logger("CustomController"),"MPC optim started: %.2f",robot_pose_.pose.position.x);
@@ -1466,10 +1442,8 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
   return cmd_vel;
   }
 
-  void CustomController::execute_mpc() // every 200ms
+  void CustomController::execute_mpc() // every Ts_MPC_ seconds
   {
-
-
 
    if(mpc_obstacle_constraints_matrix_.size()!=0) // if there are obstacle constraints, set them in MPC class
    {
