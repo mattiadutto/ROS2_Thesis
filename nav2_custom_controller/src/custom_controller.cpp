@@ -98,13 +98,22 @@ namespace nav2_custom_controller
     robot_footprint_point.y = -0.290;
     robot_footprint_.push_back(robot_footprint_point); 
 
+    disable_nav2_path_ = false;
+
+ 
+    //// SWITCH -  switch variables based on intended use
+    path_loaded_ = true; // if false, then path from nav2 will not be considered, but instead a path from csv file
+    path_saved_ = false; // if false, then only the first passed path from nav2 will be saved to csv file 
+    print_ = false; // if true, useful info will be printed
 
 
-    ub_.push_back(0.0);
-    ub_.push_back(0.0);
 
-    lb_.push_back(0.0);
-    lb_.push_back(0.0);
+
+  //  ub_.push_back(0.0);
+   // ub_.push_back(0.0);
+
+   // lb_.push_back(0.0);
+   // lb_.push_back(0.0);
 
 
   }
@@ -136,7 +145,7 @@ namespace nav2_custom_controller
     // RCLCPP Timers
 
     // #TODO make obstacle_algorithm to run faster (its 1 second now because its easier to read the log messages when debugging)
-    obstacle_algorithm_timer = node->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&CustomController::obstacle_algorithm, this));
+    obstacle_algorithm_timer = node->create_wall_timer(std::chrono::milliseconds(200), std::bind(&CustomController::obstacle_algorithm, this));
    // mpc_timer_ = node->create_wall_timer(std::chrono::milliseconds(200),std::bind(&CustomController::execute_mpc, this));
    // fblin_timer_ = node->create_wall_timer(std::chrono::milliseconds(10),std::bind(&CustomController::execute_fblin, this));
 
@@ -187,16 +196,10 @@ namespace nav2_custom_controller
       node, plugin_name_ + ".max_infeasible_solutions", rclcpp::ParameterValue(2));
 
     declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_upper_bound_from", rclcpp::ParameterValue(2.0));
+      node, plugin_name_ + ".variable_upper_bound", rclcpp::ParameterValue(100));
 
     declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_upper_bound_to", rclcpp::ParameterValue(100.0));
-
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_lower_bound_from", rclcpp::ParameterValue(2.0));
-
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_lower_bound_to", rclcpp::ParameterValue(-100.0));
+      node, plugin_name_ + ".variable_lower_bound", rclcpp::ParameterValue(-100));
 
 
     // Feedback Linearization parameters
@@ -230,10 +233,11 @@ namespace nav2_custom_controller
     node->get_parameter(plugin_name_ + ".Q",q_);
     node->get_parameter(plugin_name_ + ".R",r_);
     node->get_parameter(plugin_name_ + ".max_infeasible_solutions",maxInfeasibleSolution_);
-    node->get_parameter(plugin_name_ + ".variable_upper_bound_from",ub_[0]);
-    node->get_parameter(plugin_name_ + ".variable_upper_bound_to",ub_[1]);
-    node->get_parameter(plugin_name_ + ".variable_lower_bound_from",lb_[0]);
-    node->get_parameter(plugin_name_ + ".variable_lower_bound_to",lb_[1]);
+    int upper_bound,lower_bound;
+    node->get_parameter(plugin_name_ + ".variable_upper_bound",upper_bound);
+    node->get_parameter(plugin_name_ + ".variable_lower_bound",lower_bound);
+    std::vector<double> lb_(2, lower_bound);
+    std::vector<double> ub_(2, upper_bound);
     node->get_parameter(plugin_name_ + ".p_distance",p_dist_);
     node->get_parameter(plugin_name_ + ".feedback_linearization_sampling_time",Ts_fblin_);
     node->get_parameter(plugin_name_ + ".max_wheel_speeds",wMax_);
@@ -308,17 +312,43 @@ namespace nav2_custom_controller
       }
     }
 
-    path_saved_ = false;
+
+
 
     index=1;
 
     ////////////////////////////////////////////////////////
+/*
+      // MPC parameters
+    int N_ = 2;
+    double Ts_MPC_ = 0.2; // need to automatically change the wall timer duration ! for now change manually
+
+    // Low Q, High R - > prioritizes minimizing control effort, possibly at the expense of tracking performance.
+    // High Q, Low R - > prioritizes state tracking accuracy over control effort, leading to aggressive control actions.
+    double q_ = 4;
+    double r_ = 10; 
+    int maxInfeasibleSolution = 2; 
+
+    // Feedback linearization parameters
+    double p_dist_ = 0.2;
+    double Ts_fblin_ = 0.01;
+
+    // Robot parameters
+    // robot top speed is 3 m/s, and the wheel radius is 0.08m, so the wMax for top speed is 37.5
+    double wMax_ = 10; // 
+    double wMin_ = -wMax_;
+    double R_ = 0.08;
+    double d_ = 0.4;
+
+    std::vector<double> lb_(2, -100.0);
+    std::vector<double> ub_(2, +100.0);
 
     predicted_x.resize((N_+1),0);
     predicted_y.resize((N_+1),0);
     predicted_theta.resize((N_+1),0);
-
+\*/
     // create and initialize MPC
+   
     MPC_->set_MPCparams(Ts_MPC_, N_, q_, r_, lb_, ub_, maxInfeasibleSolution_);
     MPC_->set_FBLINparams(Ts_fblin_, p_dist_);
     MPC_->set_robotParams(wMax_, wMin_, R_, d_);
@@ -347,14 +377,14 @@ namespace nav2_custom_controller
   }
 
 
+
+
+
+
+
   void CustomController::obstacle_algorithm()
-  {
+  {   
 
-    RCLCPP_INFO(rclcpp::get_logger("inflation_radius_"), "%f ", inflation_radius_);
-
-
-
-   
   try
   { 
 
@@ -491,20 +521,23 @@ namespace nav2_custom_controller
 
   // store in Eigen matrix and vector the most violated constraints
 
-  // Extract number of rows
-  size_t num_rows = mpc_obstacle_constraints_.matrix_rows.size();
-  mpc_obstacle_constraints_matrix_.resize(num_rows, 2);
-  mpc_obstacle_constraints_vector_.resize(num_rows);
-
-  for (size_t i = 0; i < num_rows; ++i)
+  
+  if (mpc_obstacle_constraints_.matrix_rows.size() != 0)
   {
-    // Copy data from matrix rows
-    mpc_obstacle_constraints_matrix_(i, 0) = mpc_obstacle_constraints_.matrix_rows[i].col1;
-    mpc_obstacle_constraints_matrix_(i, 1) = mpc_obstacle_constraints_.matrix_rows[i].col2;
-    
-    // Copy data from vector rows
-    mpc_obstacle_constraints_vector_(i) = mpc_obstacle_constraints_.vector_rows[i].col1;
+    // Extract number of rows
+    size_t num_rows = mpc_obstacle_constraints_.matrix_rows.size();
+    mpc_obstacle_constraints_matrix_.resize(num_rows, 2);
+    mpc_obstacle_constraints_vector_.resize(num_rows);
 
+    for (size_t i = 0; i < num_rows; ++i)
+    {
+      // Copy data from matrix rows
+      mpc_obstacle_constraints_matrix_(i, 0) = mpc_obstacle_constraints_.matrix_rows[i].col1;
+      mpc_obstacle_constraints_matrix_(i, 1) = mpc_obstacle_constraints_.matrix_rows[i].col2;
+    
+      // Copy data from vector rows
+      mpc_obstacle_constraints_vector_(i) = mpc_obstacle_constraints_.vector_rows[i].col1;
+  }
   }
 
   // consider only the points of the grid that are inside the region defined by the most violated constraints
@@ -560,195 +593,125 @@ namespace nav2_custom_controller
   convex_hull_array.obstacles.resize(1); // Make sure the vector has at least 1 element
   convex_hull_array.obstacles[0] = obstacle_msg;
 
-  //std::cout<<"num of convex hull vertices: "<<obstacle_msg.polygon.points.size()<<std::endl;
-
-  /*A_convex_region_matrix_.clear();
-  b_convex_region_vect_.clear();
-
-
-
-  //iterate over each vertex of the current polygon (.size() - 2 to account for last vertex in the vector that is duplicate of the first vertex)
-    for (int j = 0; j < (int)obstacle_msg.polygon.points.size() - 2; ++j)
-    {
-
-      calcLineEquation(obstacle_msg.polygon.points[j],obstacle_msg.polygon.points[j+1],A_convex_region_matrix_,b_convex_region_vect_);
-
-    }
-
-     // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
-      // vector is not empty and if the vector size is not 2 (otherwise the for loop between 2 points will be enough)
-    if (!obstacle_msg.polygon.points.empty() && obstacle_msg.polygon.points.size() != 2)
-    {
-
-      // calculate the equation of the line between last point and first point of the polygon
-      auto last_point = obstacle_msg.polygon.points.end();  
-      auto prev_point = std::prev(last_point, 2);  
-      calcLineEquation(*prev_point,obstacle_msg.polygon.points.front(),A_convex_region_matrix_,b_convex_region_vect_);
-    }
-
-    std::cout<<"A_convex_region_matrix"<<std::endl;
-
-
-  for (const auto& row : A_convex_region_matrix_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }
-
-  std::cout<<"b_convex_region_vect_"<<std::endl;
-
-
-  for (const auto& row : b_convex_region_vect_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  } */
-
-
-  // printing
-
-  /*  std::cout<<"A_matrix"<<std::endl;
-
-
-  for (const auto& row : A_obst_matrix_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }
-
-  std::cout<<"b_vector"<<std::endl;
-
-
-  for (const auto& row : b_vect_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  } 
-
-
-  std::cout<<"A_most_violated_matrix"<<std::endl;
-
-
-  for (const auto& row : A_most_violated_matrix_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }
-
-  std::cout<<"b_most_violated_vect"<<std::endl;
-
-
-  for (const auto& row : b_most_violated_vect_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }*/
-
-  bool print = true; // simple switch for printing or not the constraint matrices to console
-
-  if (print == true)
+  if (print_ == true)
   {
 
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_matrix");
 
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_matrix");
+    int row_number = 1;  
     for (const auto& row : A_obst_matrix_)
     {
+      std::stringstream ss;
+      ss << row_number << ": ";  
       for (const auto& val : row)
       {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+        ss << val << " ";
       }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;  // Increment the row number for the next row
     }
 
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_vector");
-
+     row_number = 1;  
     for (const auto& row : b_vect_)
     {
+      std::stringstream ss;
+      ss << row_number << ": ";  
       for (const auto& val : row) 
       {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+        ss << val << " ";
       }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
-        std::cout<<""<<std::endl;
-
 
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_violated_matrix_");
+     row_number = 1;  
 
     for (const auto& row : A_violated_matrix_)
     {
+      std::stringstream ss;
+      ss << row_number << ": "; 
       for (const auto& val : row)
       {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+        ss << val << " ";
       }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
 
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_violated_vect_");
+     row_number = 1;  
 
     for (const auto& row : b_violated_vect_)
     {
+      std::stringstream ss;
+      ss << row_number << ": "; 
       for (const auto& val : row) 
       {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+        ss << val << " ";
       }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
-        std::cout<<""<<std::endl;
 
 
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_most_violated_matrix");
+     row_number = 1;  
 
     for (const auto& row : A_most_violated_matrix_)
     {
+      std::stringstream ss;
+      ss << row_number << ": "; 
       for (const auto& val : row)
       {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+        ss << val << " ";
       }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
 
     RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_most_violated_vect");
+     row_number = 1;  
 
     for (const auto& row : b_most_violated_vect_)
     {
+      std::stringstream ss;
+      ss << row_number << ": "; 
       for (const auto& val : row)
       {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
+        ss << val << " ";
       }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
-  
+    
 
-    std::cout<<""<<std::endl;
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC A_matrix");
+    row_number = 1;
 
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_most_violated_matrix_considered");
-
-    for (const auto& row : A_most_violated_matrix_considered_)
+    for (int i = 0; i < mpc_obstacle_constraints_.matrix_rows.size(); ++i)
     {
-      for (const auto& val : row)
-      {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
-      }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+      std::stringstream ss;
+      ss << row_number << ": ";
+      ss << mpc_obstacle_constraints_.matrix_rows[i].col1 << " ";
+      ss << mpc_obstacle_constraints_.matrix_rows[i].col2;
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
 
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_most_violated_vect_considered");
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC b_vector");
+    row_number = 1;
 
-    for (const auto& row : b_most_violated_vect_considered_)
-    {
-      for (const auto& val : row)
-      {
-        RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%f ", val);
-      }
-      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "");
+    for (int i = 0; i < mpc_obstacle_constraints_.vector_rows.size(); ++i)
+    { 
+      std::stringstream ss;
+      ss << row_number << ": ";
+      ss << mpc_obstacle_constraints_.vector_rows[i].col1;
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
     }
+    
   }
 
 
@@ -910,8 +873,8 @@ namespace nav2_custom_controller
   }
 
   // Return the vector container with considered polygons below the threshold
-  RCLCPP_INFO(rclcpp::get_logger("CustomController"), 
-    "Number of considered polygons: %d", considered_polygons.obstacles.size());
+ // RCLCPP_INFO(rclcpp::get_logger("CustomController"), 
+ //  "Number of considered polygons: %d", considered_polygons.obstacles.size());
 
   }
 
@@ -989,9 +952,17 @@ void CustomController::compute_violated_constraints(const geometry_msgs::msg::Po
 }
 
 
-/// NB! PERFORM THE FOOTPRINT CHECK AND POINT DISTANCE TO CONSTRAINT ON THE INFLATED LINE !!!!
 void CustomController::compute_most_violated_constraints()
 {
+
+
+  // 13/06
+
+
+  // look photo in phone for the constraints how they are sent to the mpc and think how I can leave only one line behind the robot instead of both being included
+
+
+  /////
   float largest = std::numeric_limits<float>::lowest(); // Initialize with the lowest possible value
   int largest_index = 0;
   float distance = 0;
@@ -1033,6 +1004,7 @@ void CustomController::compute_most_violated_constraints()
       A_matrix_col.col1 = A_matrix_col.col1 * -1;
       A_matrix_col.col2 = A_matrix_col.col2 * -1;
       b_vect_col.col1 = b_vect_col.col1 * -1;
+
     }
 
       mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
@@ -1118,19 +1090,6 @@ float CustomController::compute_distance_between_lines(const std::vector<float> 
 
   return abs(C2-C1)/sqrt(pow(A,2) + pow(B,2));
 }
-/*
-float CustomController::compute_distance_between_lines(const float &b_vect_inflated_val, const int row_index)
-{
-  float A,B,C1,C2;
-
-  A = A_violated_matrix_[row_index][0]; 
-  B = A_violated_matrix_[row_index][1];
-  C1 = b_violated_vect_[row_index][0];
-  C2 = b_vect_inflated_val;
-
-  return abs(C2-C1)/sqrt(pow(A,2) + pow(B,2));
-}
-*/
 
 // b_vector_row_value is the row, col value of b_vector (that value corresponds to the intercept of the line)
 float CustomController::compute_distance_to_violated_constraint(const float &x_coord, const float &y_coord, const std::vector<float> &A_matrix_row,const float &b_vect)
@@ -1346,16 +1305,6 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 
   double v_act,w_act; 
 
-  int status;
-  MPC_->get_status(status);
-
-  if (status == 1) // error solving optim problem
-  {
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Error solving the optimization problem - solver infeasible");
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Re-initializing MPC");
-    MPC_->initialize(); // re-init the MPC problem to try again
-  }
-
 
   MPC_->set_actualRobotState(Eigen::Vector3d(pose.pose.position.x, pose.pose.position.y, yaw)); // position.z is converted yaw
 
@@ -1395,7 +1344,7 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
     double interval_duration_ms = static_cast<double>(interval_duration.count());
 
     // Print the duration between consecutive calls
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Actual MPC sampling time: %.3f ms", interval_duration_ms);
+    //RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Actual MPC sampling time: %.3f ms", interval_duration_ms);
 
     // Get the current time before executing the function
     auto start_time = std::chrono::steady_clock::now();
@@ -1412,7 +1361,7 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
     double duration_ms = static_cast<double>(duration.count());
 
     // Print the duration in milliseconds
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC optimisation time: %.3f ms", duration_ms);
+   // RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC optimisation time: %.3f ms", duration_ms);
 
     // Reset the last call time
     last_call_time = now;
@@ -1437,7 +1386,22 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
       // Print the duration in milliseconds
    //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Execution time of computeVelocityCommands: %.3f ms", duration_ms);
    //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "End of computeVelocityCommands: %.3f ms", duration_ms);
+  int status;
+  MPC_->get_status(status);
 
+  std::cout<<"status = "<<status<<std::endl;
+
+  if (status == 1) // error solving optim problem
+  {
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Error solving the optimization problem - solver infeasible");
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Re-initializing MPC");
+    // make it wait for 0.5 seconds before intializing again !
+    rclcpp::sleep_for(std::chrono::milliseconds(500));
+    MPC_->initialize(); // re-init the MPC problem to try again
+    cmd_vel.twist.linear.x = 0;
+    cmd_vel.twist.angular.z = 0;
+    
+  } 
 
   return cmd_vel;
   }
@@ -1448,8 +1412,9 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
    if(mpc_obstacle_constraints_matrix_.size()!=0) // if there are obstacle constraints, set them in MPC class
    {
 
+
     MPC_->set_obstacle_matrices(mpc_obstacle_constraints_matrix_,mpc_obstacle_constraints_vector_);
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Obstacle Constraints sent to MPC.");
+  //  RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Obstacle Constraints sent to MPC.");
 
    }
 
@@ -1528,10 +1493,79 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 
   void CustomController::setPlan(const nav_msgs::msg::Path &path )
   {
+    if (path_loaded_ == false)
+    {
 
-  global_plan_ = path;
+      // load the path, do not use path from nav2 planner
+      disable_nav2_path_ = true;
+      path_saved_ = true; // if we are loading the path, we do not to save it again 
 
-  }
+      std::string file_path = "/home/mario/scout_working/nav2_path.csv"; // Change the file path as needed
+      std::ifstream csvfile(file_path);
+      if (!csvfile.is_open())
+      {
+        std::cerr << "Failed to open file: " << file_path << std::endl;
+        return;
+      }
+
+      std::string line;
+      while (std::getline(csvfile, line))
+      {
+        std::istringstream line_stream(line);
+        std::string field;
+        std::vector<double> data;
+
+        while (std::getline(line_stream, field, ','))
+        {
+          data.push_back(std::stod(field));
+        }
+
+        if (data.size() != 3)
+        {
+          std::cerr << "Incorrect data format in CSV file" << std::endl;
+          continue;
+        }
+        double x = data[0];
+        double y = data[1];
+        double yaw = data[2];
+        geometry_msgs::msg::PoseStamped pose_stamped;
+        pose_stamped.header.frame_id = "map"; // Set the frame ID appropriately
+        pose_stamped.pose.position.x = x;
+        pose_stamped.pose.position.y = y;
+        global_plan_.poses.push_back(pose_stamped);
+      }
+
+    csvfile.close();
+    path_loaded_ = true; // setting it to true will make sure that the if statement is execute only once
+
+    }
+
+    if (path_saved_ == false)
+    {
+
+      std::ofstream csvfile("/home/mario/scout_working/nav2_path.csv"); // Change the file path as needed
+      // csvfile << "x,y,yaw\n"; // Write header with yaw
+
+      for (const auto& pose_stamped : path.poses)
+      {
+        double x = pose_stamped.pose.position.x;
+        double y = pose_stamped.pose.position.y;
+        // Extract yaw from the quaternion orientation
+        tf2::Quaternion quaternion;
+        tf2::fromMsg(pose_stamped.pose.orientation, quaternion);
+        double yaw = tf2::getYaw(quaternion);
+        csvfile << x << "," << y << "," << yaw << "\n"; // Write pose data with yaw
+      }
+      csvfile.close();
+      path_saved_ = true; // Set the flag to true to indicate that the path has been saved, preventing from further saving when path recomputes
+    }
+
+    if (disable_nav2_path_ == false)
+    {
+      global_plan_ = path;
+    }
+
+}
 
 
 

@@ -200,7 +200,7 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
     _predictRobotState(1) = act_y = _actRobotState(1);
     _predictRobotState(2) = act_theta = _actRobotState(2);
 
-            double v, w; // used by the robot
+    double v, w; // used by the robot
 
     for (auto k=0; k<_N; k++)
      {
@@ -253,53 +253,97 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
     // Compute constraint matrices
     compute_wheelVelocityConstraint();
 
-    Eigen::MatrixXd matrix(1,2);
-    matrix << 1,0;
+  //  Eigen::MatrixXd matrix(2,2);
+  //  matrix << -5,1,
+        //      -6,1;
 
-    Eigen::VectorXd vector(1);
-    vector << 3.0;
+   // Eigen::VectorXd vector(2);
+   // vector << 4.1,
+  //            3;
 
 
 
 
     compute_ObstacleConstraint(_obst_matrix,_obst_vector);
 
-   // compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
+    //compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
+    
+    std::vector<GRBConstr> obstConstraint;
+    
+    if (_A_obst.size()>0)
+    {
+
+
+        if (!_solver->addConstraint(_A_obst, _B_obst, obstConstraint))
+        {
+            std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
+            return false;
+        }
+    }   
+
+
+    if (!_solver->addConstraint(_Ain_vel, _Bin_vel, _wheelVelocityConstraint))
+    {
+        std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
+        return false;
+    }
 
 
     // modifyConstraint should be called after the initial call ! NB!
 
-    std::vector<GRBConstr> wheelVelocityConstrain;
-    if (wheelVelocityConstrain.size()==0) {
-        if (!_solver->addConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
+   // std::vector<GRBConstr> wheelVelocityConstrain;
+    
+    /*
+    if (_wheelVelocityConstraint.size()==0) 
+    {
+        if (!_solver->addConstraint(_Ain_vel, _Bin_vel, _wheelVelocityConstraint))
         {
             std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
             return false;
         }
     }
     else {
-        if (!_solver->modifyConstraint(_Ain_vel, _Bin_vel, wheelVelocityConstrain))
+        if (!_solver->modifyConstraint(_Ain_vel, _Bin_vel, _wheelVelocityConstraint))
         {
             std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
             return false;
         }
     }
+    */
+    
 
     // OBSTACLE CONSTRAINTS ///////////////////////////////////////////////////////////////////
 
-    //if(_constraints_received == true)
-   // {
-   //     std::vector<GRBConstr> obstConstraint;
-   //     if (!_solver->addConstraint(_A_obst, _B_obst, obstConstraint))
+   // std::vector<GRBConstr> obstConstraint;
+
+   
+   // if (_obstConstraint.size()==0)
+    //{
+      //  if(_constraints_received == true)
+      //  {
+      //      if (!_solver->addConstraint(_A_obst, _B_obst, obstConstraint))
+       //     {
+        //     std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
+         //    return false;
+          //  }
+           //  _constraints_received == false;
+       // }
+ //   }
+  //  else
+  //  {
+   //     if(_constraints_received == true)
     //    {
-   //          std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
-    //         return false;
-   //     }
-   //     _constraints_received == false;
+            // after infeasibility and re-init most likely I should always call first addConstraint because after re-init I get changing coeff error
+      //      if(!_solver->modifyConstraint(_A_obst, _B_obst, _obstConstraint))
+       //     {
+        //        std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the obstacle  constraint" << std::endl;
+         //       return false;
+          //      _constraints_received == false;
+          //  }
+       // }
    // }
-
-
-
+    
+ 
     // Compute cost function matrices
     compute_objectiveMatrix();
     if (!_solver->setObjective(_H, _f))
@@ -352,11 +396,11 @@ if (_optimVect.size() != 0)
     //    std::cout<<"Current ref x: "<<_refRobotState(0)<<"Current ref y: "<<_refRobotState(1)<<std::endl;
 
 
-
+/*
     std::cout << "Solution: [" << _optimVect(0) << ", " << _optimVect(1)  <<  "]" << std::endl;
     std::cout << "Objective: " << objectiveValue << std::endl;
     std::cout << "Status: " << _optimizerStatus << std::endl << std::endl;
-
+*/
 
  auto end = std::chrono::steady_clock::now(); // Record end time
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // Calculate elapsed time

@@ -308,20 +308,18 @@ controller_server:
       odom_topic: <robot_namespace>/odom
 
       obstacle_distance_threshold: 1.5
-      inflation_radius: 0.1
+      inflation_radius: 0.5
 
       prediction_horizon: 2
       mpc_sampling_time: 0.2
       Q: 2.0
-      R: 1.0
-      max_infeasible_solutions: 2
-      variable_upper_bound_from: 2.0
-      variable_upper_bound_to: 100.0
-      variable_lower_bound_from: 2.0
-      variable_lower_bound_to: -100.0
+      R: 8.0
+      max_infeasible_solutions: 4
+      variable_upper_bound: 100 # must be double type,not int
+      variable_lower_bound: -100
       p_distance: 0.1
       feedback_linearization_sampling_time: 0.01
-      max_wheel_speeds: 30.0
+      max_wheel_speeds: 5.0
       wheel_radius: 0.2
       base_width: 0.4
       

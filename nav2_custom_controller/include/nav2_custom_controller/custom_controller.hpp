@@ -210,6 +210,9 @@ class CustomController : public nav2_core::Controller
     geometry_msgs::msg::PoseStamped centroid_pose_stamped_;
     geometry_msgs::msg::PoseStamped robot_pose_;
     bool path_saved_; // Flag to indicate whether the path has been saved
+    bool path_loaded_; // Flag to indicate whether the path has been loaded from csv file
+    bool print_; // Flag to indicate whether to print info in console 
+    bool disable_nav2_path_; // Flag that disable using nav2 path from planner
     int index;
     nav_msgs::msg::Path global_plan_;
 
@@ -241,8 +244,8 @@ class CustomController : public nav2_core::Controller
 
 
 
-    std::vector<double> lb_;
-    std::vector<double> ub_;
+    //std::vector<double> lb_;
+   // std::vector<double> ub_;
 
     std::vector<double> predicted_x;
     std::vector<double> predicted_y;

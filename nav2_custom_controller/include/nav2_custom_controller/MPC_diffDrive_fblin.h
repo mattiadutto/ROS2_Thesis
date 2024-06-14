@@ -72,6 +72,10 @@ private:
     Eigen::VectorXd _actMPCstate, _refMPCstate, _optimVect;
 
     GUROBIsolver* _solver;
+    std::vector<GRBConstr> _wheelVelocityConstraint;
+    std::vector<GRBConstr> _obstConstraint;
+
+
 
     bool _constraints_received;
 
