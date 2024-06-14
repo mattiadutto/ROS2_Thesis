@@ -64,12 +64,10 @@ link_libraries(gurobi_g++8.5)
 # Source files
 set(SOURCES
   src/custom_controller.cpp
-  src/feedback_lin.cpp
   src/MPC_diffDrive_fblin.cpp
   src/GUROBIsolver.cpp
   src/fblin_unicycle.cpp
   src/convex_hull.cpp
-  src/mpc_node.cpp
 
 )
 
@@ -80,35 +78,14 @@ set(ADDITIONAL_NODE_SOURCES
   src/GUROBIsolver.cpp
   src/fblin_unicycle.cpp
   src/convex_hull.cpp
-  src/mpc_node.cpp
 
 )
-
-add_executable(mpc_node ${ADDITIONAL_NODE_SOURCES})
 
 # Build the main library
 add_library(nav2_custom_controller SHARED ${SOURCES})
 
-#add_library(nav2_custom_controller SHARED
-#        src/custom_controller.cpp
-#        src/feedback_lin.cpp
-#        src/MPC_diffDrive_fblin.cpp
-#        src/GUROBIsolver.cpp
-#        )
-
 target_link_libraries(nav2_custom_controller ${GUROBI_LIB_DIR}/libgurobi110.so)
-target_link_libraries(mpc_node nav2_custom_controller)
 
-#target_link_libraries(nav2_custom_controller
- #   ${CMAKE_DL_LIBS} # This is often necessary for Gurobi
- #   /home/garabetov/Gurobi/gurobi1100/linux64/lib/libgurobi110.so
-#)
-
-# Specify the path to the Gurobi library
-#set(GUROBI_LIBRARY "/home/mario/Gurobi/gurobi1100/linux64/lib/libgurobi110.so")
-
-# Link the nav2_custom_controller library with the Gurobi library
-#target_link_libraries(nav2_custom_controller INTERFACE ${GUROBI_LIBRARY})
 
 # prevent pluginlib from using boost
 target_compile_definitions(nav2_custom_controller PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
@@ -125,10 +102,6 @@ install(TARGETS nav2_custom_controller
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
-install(TARGETS mpc_node
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 install(DIRECTORY include/
   DESTINATION include/
 )

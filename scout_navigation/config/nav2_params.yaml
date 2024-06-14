@@ -192,6 +192,7 @@ bt_navigator:
     # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
     # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
     # They can be set here or via a RewrittenYaml remap from a parent launch file to Nav2.
+    #TODO: remove absolute paths
     default_nav_to_pose_bt_xml: '/home/mario/scout_working/src/scout_navigation/custom_bt.xml'
     plugin_lib_names:
       - nav2_compute_path_to_pose_action_bt_node
@@ -288,13 +289,13 @@ controller_server:
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.5
-      movement_time_allowance: 20.0
+      movement_time_allowance: 30.0 # if 30 sec it doesnt move it will abort the goal
     
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.35
-      yaw_goal_tolerance: 0.35
+      xy_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.25
 
     # CustomController
     FollowPath:
@@ -315,7 +316,7 @@ controller_server:
       Q: 2.0
       R: 8.0
       max_infeasible_solutions: 4
-      variable_upper_bound: 100 # must be double type,not int
+      variable_upper_bound: 100 
       variable_lower_bound: -100
       p_distance: 0.1
       feedback_linearization_sampling_time: 0.01
