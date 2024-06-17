@@ -140,6 +140,8 @@ bool MPC_diffDrive_fblin::initialize() {
     compute_QcalMatrix();
     compute_RcalMatrix();
 
+    _pose_received = false;
+
     _H = Eigen::MatrixXd::Zero(2*_N, 2*_N);
     _f = Eigen::VectorXd::Zero(2*_N);
     _Ain_vel = Eigen::MatrixXd::Zero(2*2*_N, 2*_N);
@@ -180,6 +182,7 @@ bool MPC_diffDrive_fblin::initialize() {
 
 bool MPC_diffDrive_fblin::executeMPCcontroller()
  {
+
 
     auto start = std::chrono::steady_clock::now(); // Record start time
 
@@ -253,20 +256,28 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
     // Compute constraint matrices
     compute_wheelVelocityConstraint();
 
-  //  Eigen::MatrixXd matrix(2,2);
-  //  matrix << -5,1,
+    Eigen::MatrixXd matrix(1,2);
+    matrix << 7,-1;
         //      -6,1;
 
-   // Eigen::VectorXd vector(2);
-   // vector << 4.1,
+    Eigen::VectorXd vector(1);
+    vector << 4;
   //            3;
 
 
 
 
-    compute_ObstacleConstraint(_obst_matrix,_obst_vector);
+   // compute_ObstacleConstraint(_obst_matrix,_obst_vector);
 
-    //compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
+    compute_ObstacleConstraint(matrix,vector); // used to manually set obstacle constraints
+/*
+    double lastElement = _B_obst.tail<1>()(0);  // Using .tail<1>() to get the last element
+    std::cout << "Last element of _B_obst: " << lastElement << std::endl;
+    lastElement = _L_obst.tail<1>()(0);  // Using .tail<1>() to get the last element
+    std::cout << "Last element of _L_obst: " << lastElement << std::endl;
+    std::cout<<"actMPCstate 0: " <<_actMPCstate(0)<<std::endl;
+    std::cout<<"actMPCstate 1: " <<_actMPCstate(1)<<std::endl;
+
     
     std::vector<GRBConstr> obstConstraint;
     
@@ -280,13 +291,13 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
             return false;
         }
     }   
+/*
 
-
-    if (!_solver->addConstraint(_Ain_vel, _Bin_vel, _wheelVelocityConstraint))
-    {
-        std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
-        return false;
-    }
+   // if (!_solver->addConstraint(_Ain_vel, _Bin_vel, _wheelVelocityConstraint))
+   // {
+   //     std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] Error setting the wheel velocity constraint" << std::endl;
+    //    return false;
+   // }
 
 
     // modifyConstraint should be called after the initial call ! NB!
@@ -353,7 +364,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
     }
 
     // Solve optimization problem
-   // double objectiveValue;
+    double objectiveValue;
+   
     if (!_solver->solveProblem(_optimVect, objectiveValue, _optimizerStatus))
     {
         _optimVect.setZero();
@@ -364,6 +376,8 @@ bool MPC_diffDrive_fblin::executeMPCcontroller()
 
         return false;
     }
+
+
     if (_optimizerStatus!=GUROBIsolver::OPTIMAL)
     {
         std::cout << "[MPC_diffDrive_fblin.executeMPCcontroller] No optimal solution found" << std::endl;
@@ -449,12 +463,12 @@ void MPC_diffDrive_fblin::set_actualRobotState(const Eigen::VectorXd& actRobotSt
     }
     else
     {
+        _fblinController->set_unicycleState(actRobotState(0), actRobotState(1), actRobotState(2));
         // _actRobotState contains x and y current
         _actRobotState = actRobotState;
         // actMPCstate will contain current xp and yp computed from current x and y by feedback lin
         _fblinController->ouput_transformation(_actMPCstate(0), _actMPCstate(1));
 
-     //  std::cout<<"current xp = "<<_actRobotState(0)<<std::endl;
 
 
     }
@@ -673,6 +687,10 @@ for (int i = 0; i < _L_obst.size(); i++)
 }
 
  _A_obst = _H_obst * _Bcal;
+ //_fblin_states(0) = 0,1;
+//_fblin_states(0) = 0;
+
+
 
     _B_obst = _L_obst - ((_H_obst * _Acal)) * _fblin_states;
 

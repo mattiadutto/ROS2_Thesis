@@ -314,7 +314,6 @@ bool GUROBIsolver::solveProblem(Eigen::VectorXd& result, double& objectiveValue,
 
        // _pModel ->reset();
 
-        std::cout<<"function solve problem called"<<std::endl;
 
 
         // Check the status of the solver

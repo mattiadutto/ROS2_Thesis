@@ -75,6 +75,7 @@ private:
     std::vector<GRBConstr> _wheelVelocityConstraint;
     std::vector<GRBConstr> _obstConstraint;
 
+    bool _pose_received;
 
 
     bool _constraints_received;

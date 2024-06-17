@@ -1284,6 +1284,7 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
   const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
   {
 
+
     robot_pose_.pose.position.x = pose.pose.position.x;
     robot_pose_.pose.position.y = pose.pose.position.y;
 
@@ -1334,6 +1335,22 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
   // Check if Ts_MPC_*1000 ms have passed since the last call
   if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time).count() >= Ts_MPC_*1000)
   {
+
+     int status;
+  MPC_->get_status(status);
+  if (status == 1) // error solving optim problem
+  {
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Error solving the optimization problem - solver infeasible");
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Re-initializing MPC");
+    // make it wait for 0.5 seconds before intializing again !
+   // rclcpp::sleep_for(std::chrono::milliseconds(500));
+    MPC_->initialize(); // re-init the MPC problem to try again
+    MPC_->set_actualRobotState(Eigen::Vector3d(pose.pose.position.x, pose.pose.position.y, yaw)); // position.z is converted yaw
+
+    cmd_vel.twist.linear.x = 0;
+    cmd_vel.twist.angular.z = 0;
+    
+  } 
 
     // RCLCPP_INFO(rclcpp::get_logger("CustomController"),"MPC optim started: %.2f",robot_pose_.pose.position.x);
     // Define a duration type for milliseconds
@@ -1386,22 +1403,10 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
       // Print the duration in milliseconds
    //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Execution time of computeVelocityCommands: %.3f ms", duration_ms);
    //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "End of computeVelocityCommands: %.3f ms", duration_ms);
-  int status;
-  MPC_->get_status(status);
+ 
 
-  std::cout<<"status = "<<status<<std::endl;
 
-  if (status == 1) // error solving optim problem
-  {
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Error solving the optimization problem - solver infeasible");
-    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Re-initializing MPC");
-    // make it wait for 0.5 seconds before intializing again !
-    rclcpp::sleep_for(std::chrono::milliseconds(500));
-    MPC_->initialize(); // re-init the MPC problem to try again
-    cmd_vel.twist.linear.x = 0;
-    cmd_vel.twist.angular.z = 0;
-    
-  } 
+
 
   return cmd_vel;
   }
@@ -1423,6 +1428,8 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 
   // Get the current time before executing the function
     auto start_time = std::chrono::steady_clock::now();
+
+
 
   // Solve the MPC problem
     MPC_->executeMPCcontroller();
