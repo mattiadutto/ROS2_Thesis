@@ -307,8 +307,15 @@ bool GUROBIsolver::solveProblem(Eigen::VectorXd& result, double& objectiveValue,
     /** Solve the QP problem */
     try
     {
+                             //   _pModel ->reset();
+
         // Solve the problem
         _pModel->optimize();
+
+       // _pModel ->reset();
+
+        std::cout<<"function solve problem called"<<std::endl;
+
 
         // Check the status of the solver
         if (_pModel->get(GRB_IntAttr_Status)==GRB_OPTIMAL)
@@ -330,10 +337,15 @@ bool GUROBIsolver::solveProblem(Eigen::VectorXd& result, double& objectiveValue,
             optimizerStatus = GUROBIsolver::INFEASIBLE;
 
             std::cout<<"solver infeasible"<<std::endl;
+          //  _pModel ->reset();
+         //   _pModel->update();
             return false;
         }
         else
         {
+
+                       // _pModel->update();
+
             for (auto var=0; var<_variableVect.size(); var++) {
                 result(var) = 0.0;
             }

@@ -13,14 +13,14 @@ void FeedbackLin::calcPointP(const geometry_msgs::msg::PoseStamped &pose, const 
     pointP_[1] = yp_;
 }
 
-const geometry_msgs::msg::TwistStamped &FeedbackLin::linearize(const double xp_dot, const double yp_dot)
+const geometry_msgs::msg::Twist &FeedbackLin::linearize(const double xp_dot, const double yp_dot)
 {
     xp_dot_ = xp_dot;
     yp_dot_ = yp_dot;
 
-    vel_.twist.linear.x = xp_dot_ * cos(yaw_) + yp_dot_ * sin(yaw_);
+    vel_.linear.x = xp_dot_ * cos(yaw_) + yp_dot_ * sin(yaw_);
 
-	vel_.twist.angular.z = (yp_dot_ * cos(yaw_) - xp_dot_ * sin(yaw_)) / epsilon_;
+	vel_.angular.z = (yp_dot_ * cos(yaw_) - xp_dot_ * sin(yaw_)) / epsilon_;
 
     return vel_;
 

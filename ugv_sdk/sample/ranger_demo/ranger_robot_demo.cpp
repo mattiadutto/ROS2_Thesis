@@ -48,8 +48,8 @@ int main(int argc, char *argv[]) {
     }
 
     auto state = ranger->GetRobotState();
-    auto sensor = ranger->GetCommonSensorState();
     auto motion = ranger->GetActuatorState();
+    auto sensor = ranger->GetCommonSensorState();
 
     std::cout << "-------------------------------" << std::endl;
     std::cout << "count: " << count << std::endl;
@@ -59,6 +59,7 @@ int main(int argc, char *argv[]) {
               << static_cast<int>(state.system_state.vehicle_state)
               << std::endl;
     std::cout << "battery voltage: " << state.system_state.battery_voltage
+              << "battery voltage (BMS): " << sensor.bms_basic_state.voltage
               << ", battery current: " << sensor.bms_basic_state.current
               << ", SOC: "
               << static_cast<int>(sensor.bms_basic_state.battery_soc)

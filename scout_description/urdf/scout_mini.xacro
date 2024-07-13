@@ -26,6 +26,8 @@
         </collision>
     </link>
 
+   
+
     <link name="inertial_link">
         <inertial>
             <mass value="132.3898489950015" />

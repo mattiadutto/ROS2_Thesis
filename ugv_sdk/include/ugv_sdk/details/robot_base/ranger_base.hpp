@@ -47,6 +47,10 @@ class RangerBaseV2 : public AgilexBase<ProtocolV2Parser>,
                                                    r_value);
   }
 
+  void DisableLightControl() override {
+    AgilexBase<ProtocolV2Parser>::DisableLightControl();
+  }
+
   // get robot state
   RangerCoreState GetRobotState() override {
     auto state = AgilexBase<ProtocolV2Parser>::GetRobotCoreStateMsgGroup();
@@ -58,6 +62,7 @@ class RangerBaseV2 : public AgilexBase<ProtocolV2Parser>,
     ranger_state.light_state = state.light_state;
     ranger_state.rc_state = state.rc_state;
     ranger_state.motion_mode_state = state.motion_mode_state;
+
     return ranger_state;
   }
 
@@ -117,6 +122,15 @@ class RangerMiniV1Base : public RangerBaseV2 {
   ~RangerMiniV1Base() = default;
 
   // robot control
+  void SetMotionMode(uint8_t mode) override {
+    if (mode == RangerInterface::MotionMode::kPark) {
+      return;
+    } else if (mode == RangerInterface::MotionMode::kSideSlip) {
+      mode = 3;
+    }
+    AgilexBase::SetMotionMode(mode);
+  }
+
   void SetMotionCommand(double linear_vel, double steer_angle,
                         double angular_vel) override {
     auto state = GetRobotState();

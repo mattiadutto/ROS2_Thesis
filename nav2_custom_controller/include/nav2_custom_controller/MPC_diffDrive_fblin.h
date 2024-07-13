@@ -3,14 +3,14 @@
 
 #include <eigen3/Eigen/Dense> 
 
-#include "GUROBIsolver.h"
-#include "fblin_unicycle.h"
+#include "nav2_custom_controller/GUROBIsolver.h"
+#include "nav2_custom_controller/fblin_unicycle.h"
 
-#define GUROBI_LICENSEID 2476301
-#define GUROBI_USERNAME  "bascetta"
+#define GUROBI_LICENSEID 2520144
+#define GUROBI_USERNAME  "Mario"
 
-
-class MPC_diffDrive_fblin {
+class MPC_diffDrive_fblin
+{
 
 public:
     MPC_diffDrive_fblin();
@@ -28,11 +28,19 @@ public:
 
     void set_actualRobotState(const Eigen::VectorXd& actRobotState);
     void set_referenceRobotState(const Eigen::VectorXd& refRobotState);
+    void set_obstacle_matrices(const Eigen::MatrixXd& matrix, const Eigen::VectorXd& vector);
     void get_actualMPCstate(Eigen::VectorXd& state);
     void get_referenceMPCstate(Eigen::VectorXd& state);
     void get_actualMPCControl(Eigen::VectorXd& control);
 
     void get_actualControl(double& linVelocity, double& angVelocity);
+    void get_predicted_states(std::vector<double> &predicted_x,std::vector<double> &predicted_y,std::vector<double> &predicted_theta);
+
+    void get_status(int& status);
+    void get_objective_value(double& value);
+
+    void get_thresh(double& value);
+
 
 private:
     // MPC parameters
@@ -52,10 +60,28 @@ private:
     Eigen::MatrixXd _Ain_vel;
     Eigen::VectorXd _Bin_vel;
 
+    Eigen::MatrixXd _H_obst;
+    Eigen::VectorXd _L_obst;
+    Eigen::MatrixXd _A_obst;
+    Eigen::VectorXd _B_obst;
+    Eigen::MatrixXd _fblin_states;
+
+    Eigen::MatrixXd _obst_matrix;
+    Eigen::VectorXd _obst_vector;
+
     Eigen::VectorXd _actRobotState, _refRobotState, _predictRobotState;
+    std::vector<double> _predicted_x,_predicted_y,_predicted_theta;
     Eigen::VectorXd _actMPCstate, _refMPCstate, _optimVect;
 
     GUROBIsolver* _solver;
+    std::vector<GRBConstr> _wheelVelocityConstraint;
+    std::vector<GRBConstr> _obstConstraint;
+
+    double thresh_;
+
+
+
+    bool _constraints_received;
 
     // Feedback linearization parameters
     double _fblin_Ts, _Pdist;
@@ -72,6 +98,10 @@ private:
     bool _controllerInitialized;
     double linearVelocity, angularVelocity;
 
+    int _optimizerStatus;
+
+    double objectiveValue;
+
     // Private member functions
     void compute_AcalMatrix();
     void compute_BcalMatrix();
@@ -79,6 +109,8 @@ private:
     void compute_RcalMatrix();
     void compute_objectiveMatrix();
     void compute_wheelVelocityConstraint();
+    void compute_ObstacleConstraint(const Eigen::MatrixXd& matrix, const Eigen::VectorXd& vector);
+
 
     void saveMatrixToFile(std::string fileName, Eigen::MatrixXd matrix);
 };

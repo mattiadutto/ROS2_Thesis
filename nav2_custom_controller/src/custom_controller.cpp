@@ -1,6 +1,7 @@
 #include "nav2_custom_controller/custom_controller.hpp"
 
-// scout_mini_mpc_real file
+
+// scout_mini_mpc_robot file
 using std::hypot;
 using std::min;
 using std::max;
@@ -18,19 +19,19 @@ namespace nav2_custom_controller
 template <typename Iter, typename Getter>
   Iter min_by(Iter begin, Iter end, Getter getCompareVal)
   {
-  // Check if the range is empty. If so, return the 'end' iterator.
+    // Check if the range is empty. If so, return the 'end' iterator.
     if (begin == end)
     {
       return end;
     }
 
-  // Initialize variables to store the lowest comparison value and its corresponding iterator.
+    // Initialize variables to store the lowest comparison value and its corresponding iterator.
     auto lowest = getCompareVal(*begin);
     Iter lowest_it = begin;
-  // Iterate over the range starting from the second element.
+    // Iterate over the range starting from the second element.
     for (Iter it = ++begin; it != end; ++it)
     {
-    // Obtain the comparison value for the current element.
+      // Obtain the comparison value for the current element.
       auto comp = getCompareVal(*it);
       if (comp < lowest)
       {
@@ -38,49 +39,41 @@ template <typename Iter, typename Getter>
         lowest_it = it;
       }
     }
-  // Return the iterator pointing to the element with the minimum comparison value.
+    // Return the iterator pointing to the element with the minimum comparison value.
     return lowest_it;
   }
 
-// Define a lambda function for calculating Euclidean distance
+  // Define a lambda function for calculating Euclidean distance
   auto euclideanDistance = [](double x1, double y1, double x2, double y2) {
     return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
   };
 
-
+  
 CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),MPC_(std::make_unique<MPC_diffDrive_fblin>())
 { 
 
-    A_obst_matrix_.push_back({0.0,0.0});
-    b_vect_.push_back({0.0});
-    A_most_violated_matrix_.push_back({0.0,0.0});
-    b_most_violated_vect_.push_back({0.0});
+  A_obst_matrix_.push_back({0.0,0.0});
+  b_vect_.push_back({0.0});
+  A_convex_region_matrix_.push_back({0.0,0.0});
+  b_convex_region_vect_.push_back({0.0});
+  A_most_violated_matrix_.push_back({0.0,0.0});
+  A_most_violated_matrix_considered_.push_back({0.0,0.0});
+  b_most_violated_vect_.push_back({0.0});
 
-    // define a safe zone around the robot's footprint
-    robot_footprint_.resize(4);
+  disable_nav2_path_ = false;
+  stop_mpc = false;
 
-    robot_footprint_[0].x = 0.4; 
-    robot_footprint_[0].y = 0.3; 
-    robot_footprint_[1].x = 0.4;
-    robot_footprint_[1].y = -0.3;
-    robot_footprint_[2].x = -0.4;
-    robot_footprint_[2].y = 0.3;
-    robot_footprint_[3].x = -0.4;
-    robot_footprint_[3].y = -0.3;
-
-    ub_.push_back(0.0);
-    ub_.push_back(0.0);
-
-    lb_.push_back(0.0);
-    lb_.push_back(0.0);
-
-
-   
 }
 
 
- void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-    std::string name, const std::shared_ptr<tf2_ros::Buffer>  tf,
+
+
+
+
+
+  void CustomController::configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+    std::string name,
+    const std::shared_ptr<tf2_ros::Buffer>  tf,
     const std::shared_ptr<nav2_costmap_2d::Costmap2DROS>  costmap_ros)
   {
 
@@ -92,33 +85,58 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     costmap_ros_ = costmap_ros;
     tf_ = tf;
     plugin_name_ = name;
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "CustomController plugin loaded!");
+
+
     logger_ = node->get_logger(); 
     clock_ = node->get_clock();
 
-    // create new instance of rclcpp:Node with name: costmap_converter
-    intra_proc_node_.reset(new rclcpp::Node("costmap_converter", node->get_namespace(), rclcpp::NodeOptions()));
 
-    // asign the costmap as a pointer costmap_
-    costmap_ = costmap_ros_->getCostmap();
+
 
     ////////////////////////////////////////////////
 
+    // RCLCPP Timers
+
+    obstacle_algorithm_timer = node->create_wall_timer(std::chrono::milliseconds(20), std::bind(&CustomController::obstacle_algorithm, this));
+
+
+    // Publishers
+    polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
+    marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
+    marker_pub_cnvx_reg_ = node ->create_publisher<visualization_msgs::msg::Marker>("convex_region_marker",10);
+    point_marker_pub_ = node ->create_publisher<visualization_msgs::msg::Marker>("point_marker",10);
+    predicted_path_pub_ = node->create_publisher<nav_msgs::msg::Path>("predicted_path", 10);
+    marker_pub_ref_point_ = node ->create_publisher<visualization_msgs::msg::Marker>("ref_point_marker",10);
+    pose_pub_ = node->create_publisher<geometry_msgs::msg::PoseStamped>("robot_pose", 10);
+    path_publisher_ = node->create_publisher<nav_msgs::msg::Path>("custom_path", 10);
+
+    // Subscribers
+    pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
+    goal_pub_ = node->create_publisher<geometry_msgs::msg::PoseStamped>("final_pose", 10);
+    bool_pub_ = node->create_publisher<geometry_msgs::msg::PoseStamped>("bool_topic", 10);
+
+
+
+    ////////////////////////////////////////////////
     // Parameter declaration 
 
     // costmap_converter
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".costmap_converter_plugin", rclcpp::ParameterValue("costmap_converter::CostmapToLinesDBSRANSAC"));
+    declare_parameter_if_not_declared(node, plugin_name_ + ".costmap_converter_plugin", rclcpp::ParameterValue("costmap_converter::CostmapToLinesDBSRANSAC"));
 
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".costmap_converter_rate", rclcpp::ParameterValue(5));
+    declare_parameter_if_not_declared(node, plugin_name_ + ".costmap_converter_rate", rclcpp::ParameterValue(5));
 
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".odom_topic", rclcpp::ParameterValue(""));
+    declare_parameter_if_not_declared(node, plugin_name_ + ".odom_topic", rclcpp::ParameterValue(""));
 
     // obstacle algorithm parameters
 
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".obstacle_distance_threshold", rclcpp::ParameterValue(1.0));
+    declare_parameter_if_not_declared(node, plugin_name_ + ".obstacle_distance_threshold", rclcpp::ParameterValue(0.2));
+
+    declare_parameter_if_not_declared(node, plugin_name_ + ".inflation_radius", rclcpp::ParameterValue(0.1));
+
+  
+  
+
 
 
     // MPC parameters
@@ -139,16 +157,10 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
       node, plugin_name_ + ".max_infeasible_solutions", rclcpp::ParameterValue(2));
 
     declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_upper_bound_from", rclcpp::ParameterValue(2.0));
+      node, plugin_name_ + ".variable_upper_bound", rclcpp::ParameterValue(100));
 
     declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_upper_bound_to", rclcpp::ParameterValue(100.0));
-
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_lower_bound_from", rclcpp::ParameterValue(2.0));
-
-    declare_parameter_if_not_declared(
-      node, plugin_name_ + ".variable_lower_bound_to", rclcpp::ParameterValue(-100.0));
+      node, plugin_name_ + ".variable_lower_bound", rclcpp::ParameterValue(-100));
 
 
     // Feedback Linearization parameters
@@ -170,31 +182,64 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     declare_parameter_if_not_declared(
       node, plugin_name_ + ".base_width", rclcpp::ParameterValue(0.4));
 
+    declare_parameter_if_not_declared(
+      node, plugin_name_ + ".obstacle_avoidance", rclcpp::ParameterValue(false));
 
+    declare_parameter_if_not_declared(node, plugin_name_ + ".load_custom_path", rclcpp::ParameterValue(false));
+
+    declare_parameter_if_not_declared(node, plugin_name_ + ".save_path", rclcpp::ParameterValue(false));
+
+    declare_parameter_if_not_declared(node, plugin_name_ + ".print_info", rclcpp::ParameterValue(false));
+
+    declare_parameter_if_not_declared(node, plugin_name_ + ".log_parameters", rclcpp::ParameterValue(false));
+
+      
     // Set parameters from yaml file
     node->get_parameter(plugin_name_ + ".costmap_converter_plugin",costmap_converter_plugin_); 
     node->get_parameter(plugin_name_ + ".costmap_converter_rate",costmap_converter_rate_); 
     node->get_parameter(plugin_name_ + ".odom_topic",odom_topic_);
     node->get_parameter(plugin_name_ + ".obstacle_distance_threshold",obstacle_distance_thresh_);
+    node->get_parameter(plugin_name_ + ".inflation_radius",inflation_radius_);
+    
     node->get_parameter(plugin_name_ + ".prediction_horizon",N_);
     node->get_parameter(plugin_name_ + ".mpc_sampling_time",Ts_MPC_);
     node->get_parameter(plugin_name_ + ".Q",q_);
     node->get_parameter(plugin_name_ + ".R",r_);
     node->get_parameter(plugin_name_ + ".max_infeasible_solutions",maxInfeasibleSolution_);
-    node->get_parameter(plugin_name_ + ".variable_upper_bound_from",ub_[0]);
-    node->get_parameter(plugin_name_ + ".variable_upper_bound_to",ub_[1]);
-    node->get_parameter(plugin_name_ + ".variable_lower_bound_from",lb_[0]);
-    node->get_parameter(plugin_name_ + ".variable_lower_bound_to",lb_[1]);
+    int upper_bound,lower_bound;
+    node->get_parameter(plugin_name_ + ".variable_upper_bound",upper_bound);
+    node->get_parameter(plugin_name_ + ".variable_lower_bound",lower_bound);
+    std::vector<double> lb_(2, lower_bound);
+    std::vector<double> ub_(2, upper_bound);
     node->get_parameter(plugin_name_ + ".p_distance",p_dist_);
     node->get_parameter(plugin_name_ + ".feedback_linearization_sampling_time",Ts_fblin_);
     node->get_parameter(plugin_name_ + ".max_wheel_speeds",wMax_);
     wMin_ = -wMax_;
     node->get_parameter(plugin_name_ + ".wheel_radius",R_);
     node->get_parameter(plugin_name_ + ".base_width",d_);
+    node->get_parameter(plugin_name_ + ".obstacle_avoidance",obstacle_avoidance_);
+
+    node->get_parameter(plugin_name_ + ".load_custom_path",load_path_);
+    node->get_parameter(plugin_name_ + ".save_path",save_path_);
+    node->get_parameter(plugin_name_ + ".print_info",print_);
+    node->get_parameter(plugin_name_ + ".log_parameters",log_parameters_);
+
+
+    
+
+
+  
 
     ////////////////////////////////////////////////
-
     // costmap_converter plugin load
+
+    // create new instance of rclcpp:Node with name: costmap_converter
+    intra_proc_node_.reset(new rclcpp::Node("costmap_converter", node->get_namespace(), rclcpp::NodeOptions()));
+
+
+    // asign the costmap as a pointer costmap_
+    costmap_ = costmap_ros_->getCostmap();
+
     try
     {
       // load the plugin
@@ -209,7 +254,7 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
       const auto rate = std::make_shared<rclcpp::Rate>((double)costmap_converter_rate_);
       // convert most recent costmap to polygons with startWroker() method
       // it also invoke compute() method of the loaded plugin that does the conversion to polygons/lines
-      costmap_converter_->startWorker(rate, costmap_, "True");
+      costmap_converter_->startWorker(rate,costmap_, "True");
       RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Costmap conversion plugin %s loaded.", costmap_converter_plugin_.c_str());
     }
     catch(pluginlib::PluginlibException& ex)
@@ -220,29 +265,10 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     }
 
 
-    // Publishers and Subscribers
-
-    obstacle_pub_ = node->create_publisher<costmap_converter_msgs::msg::ObstacleArrayMsg>("costmap_obstacles", 100);
-
-    polygon_pub_ = node->create_publisher<geometry_msgs::msg::PolygonStamped>("costmap_polygons",1);
-
-    marker_pub_ = node->create_publisher<visualization_msgs::msg::Marker>("polygon_marker", 10);
-
-    marker_pub_cnvx_reg_ = node ->create_publisher<visualization_msgs::msg::Marker>("convex_region_marker",10);
-
-    point_marker_pub_ = node ->create_publisher<visualization_msgs::msg::Marker>("point_marker",10);
-
-
-    // Create a lifecycle wall timer with a callback function
-
-    //call timer_callback() every 1 second 
-    wall_timer_ = node->create_wall_timer(std::chrono::seconds(1), std::bind(&CustomController::timer_callback, this));
-
-    pose_sub_ = node->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose",100,std::bind(&CustomController::pose_sub_callback, this,std::placeholders::_1));
-
-    ////////////////////////////////////////////////
+     ////////////////////////////////////////////////
 
     //create grid of points 
+    // #TODO note: if the grid size is changed -> the constraints of the grid should be changed!!!
 
     point_vect_.reserve(1000);
     point_vect_rotated_.reserve(1000);
@@ -251,11 +277,11 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     point_vect_.clear();
     point_vect_rotated_.clear();
 
-    double minX = -1;
-    double maxX = 1;
-    double minY = -1;
-    double maxY = 1;
-    double resolution = 0.1;
+    double minX = -obstacle_distance_thresh_;
+    double maxX = obstacle_distance_thresh_;
+    double minY = -obstacle_distance_thresh_;
+    double maxY = obstacle_distance_thresh_;
+    double resolution = 0.05;
 
     for (double x = minX; x <= maxX; x += resolution)
     {
@@ -270,14 +296,9 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
       }
     }
 
-    ////////////////////////////////////////////////////////
-
-    ////////////////////////////////////////////////////////
-
-    // MPC PART
-
+    index=1;
     // create and initialize MPC
-
+   
     MPC_->set_MPCparams(Ts_MPC_, N_, q_, r_, lb_, ub_, maxInfeasibleSolution_);
     MPC_->set_FBLINparams(Ts_fblin_, p_dist_);
     MPC_->set_robotParams(wMax_, wMin_, R_, d_);
@@ -303,17 +324,32 @@ CustomController::CustomController():costmap_ros_(nullptr),costmap_converter_loa
     std::cerr<<"Exception raised"<<e.what()<<std::endl;
    }  
 
+  }
 
-   MPC();
+ void CustomController::obstacle_algorithm()
+  { 
 
 
+  if (log_parameters_ == true)
+  {
+     // Logging the parameters
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Obstacle Distance Threshold: %f", obstacle_distance_thresh_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Inflation Radius: %f", inflation_radius_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Prediction Horizon: %d", N_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC Sampling Time: %f", Ts_MPC_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Q: %f", q_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "R: %f", r_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "P Distance: %f", p_dist_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Feedback Linearization Sampling Time: %f", Ts_fblin_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Max Wheel Speeds: %f", wMax_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Min Wheel Speeds: %f", wMin_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Wheel Radius: %f", R_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Base Width: %f", d_);
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Obstacle Avoidance: %s", obstacle_avoidance_ ? "true" : "false");
+ 
 
+  }  
 
-
-}
-
-void CustomController::timer_callback()
-{
 
   try
   { 
@@ -349,7 +385,7 @@ void CustomController::timer_callback()
     // Translate the point
     transformed_point.x += received_tf_.transform.translation.x;
     transformed_point.y += received_tf_.transform.translation.y;
-
+                                          
     point_vect_rotated_.push_back(transformed_point);
 
 
@@ -366,7 +402,7 @@ void CustomController::timer_callback()
     tf2::fromMsg(received_tf_.transform.rotation, quat);
     tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-    geometry_msgs::msg::Point32 transformed_point;
+    costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint transformed_point;
 
      // Rotate the point around the Z-axis
     double cos_theta = cos(yaw);
@@ -405,10 +441,16 @@ void CustomController::timer_callback()
   b_violated_vect_.clear();
   result_pose_stored_.clear();
   A_most_violated_matrix_.clear();
+  A_most_violated_matrix_considered_.clear();
   b_most_violated_vect_.clear();
+  b_most_violated_vect_considered_.clear();
+  mpc_obstacle_constraints_.vector_rows.clear();
+  mpc_obstacle_constraints_.matrix_rows.clear();
+  mpc_obstacle_constraints_matrix_.resize(0, 0);
+  mpc_obstacle_constraints_vector_.resize(0, 0);
   A_obst_matrix_.clear();
   b_vect_.clear();
-  stored_centroid_point_.obstacles.clear();
+  b_vect_inflated_.clear(); //// NEW !!!
   int it=0;
 
   for (const auto &obstacle : considered_polygons.obstacles)
@@ -418,8 +460,8 @@ void CustomController::timer_callback()
     for (int j = 0; j < (int)obstacle.polygon.points.size() - 2; ++j)
     {
 
-      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],robot_pose_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_rotated_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      calcLineEquation(obstacle.polygon.points[j],obstacle.polygon.points[j+1],A_obst_matrix_,b_vect_);
+      compute_violated_constraints(considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
       // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
@@ -430,27 +472,64 @@ void CustomController::timer_callback()
       // calculate the equation of the line between last point and first point of the polygon
       auto last_point = obstacle.polygon.points.end();  
       auto prev_point = std::prev(last_point, 2);  
-      calcLineEquation(*prev_point,obstacle.polygon.points.front(),robot_pose_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
-      compute_violated_constraints(robot_footprint_rotated_,considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
+      calcLineEquation(*prev_point,obstacle.polygon.points.front(),A_obst_matrix_,b_vect_);
+      compute_violated_constraints(considered_centroid_.obstacles[it].polygon.points[0],A_obst_matrix_,b_vect_);
     }
 
     it++;
+
     // computing the most violated constraint per each polygon
     compute_most_violated_constraints();
+
   } 
+
+  // store in Eigen matrix and vector the most violated constraints
+
+  
+  if (mpc_obstacle_constraints_.matrix_rows.size() != 0)
+  {
+    // Extract number of rows
+    size_t num_rows = mpc_obstacle_constraints_.matrix_rows.size();
+    mpc_obstacle_constraints_matrix_.resize(num_rows, 2);
+    mpc_obstacle_constraints_vector_.resize(num_rows);
+
+    for (size_t i = 0; i < num_rows; ++i)
+    {
+      // Copy data from matrix rows
+      mpc_obstacle_constraints_matrix_(i, 0) = mpc_obstacle_constraints_.matrix_rows[i].col1;
+      mpc_obstacle_constraints_matrix_(i, 1) = mpc_obstacle_constraints_.matrix_rows[i].col2;
+    
+      // Copy data from vector rows
+      mpc_obstacle_constraints_vector_(i) = mpc_obstacle_constraints_.vector_rows[i].col1;
+  }
+  }
 
   // consider only the points of the grid that are inside the region defined by the most violated constraints
   point_vect_constrained_.clear();
 
   for (const auto& point : point_vect_rotated_)
   {
-
-    if (isViolated(point,A_most_violated_matrix_,b_most_violated_vect_) == false)
+    geometry_msgs::msg::Point32 point32;
+    point32.x = point.x;
+    point32.y = point.y;
+    int count = 0;
+    for (int row = 0; row < A_most_violated_matrix_.size(); row++)
     {
-      point_vect_constrained_.push_back(point);
+      // loop through all constraints and perform a check for the current point
+      if (isViolated(point32,A_most_violated_matrix_[row],b_most_violated_vect_[row][0]) == false)
+      {
+        // if point and center of robot are in the same plane, increment
+        count++;
+      }
     }
+    if (count == A_most_violated_matrix_.size())
+    {
+      // current point must be included in point_vect_contrained_
+      point_vect_constrained_.push_back(point);
 
+    }
   }
+
 
   std::vector<costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint> convexHull;
 
@@ -462,7 +541,7 @@ void CustomController::timer_callback()
 
   // Create an ObstacleMsg to hold the convex hull
   costmap_converter_msgs::msg::ObstacleMsg obstacle_msg;
-
+  int num = 0;
   // Add the points of the convex hull to the ObstacleMsg
   for (const auto& point : convexHull)
   {
@@ -470,62 +549,140 @@ void CustomController::timer_callback()
     geometry_msgs::msg::Point32 point32;
     point32.x = point.x;
     point32.y = point.y;
+   // std::cout<<"current vertex: "<<num<<"x: "<<point.x<<"y: "<<point.y<<std::endl;
     obstacle_msg.polygon.points.push_back(point32);
+    num++;
   }
 
   convex_hull_array.obstacles.resize(1); // Make sure the vector has at least 1 element
   convex_hull_array.obstacles[0] = obstacle_msg;
 
-  // printing
-/*
-
-  std::cout<<"A_matrix"<<std::endl;
+  if (print_ == true)
+  {
 
 
-  for (const auto& row : A_obst_matrix_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_matrix");
+    int row_number = 1;  
+    for (const auto& row : A_obst_matrix_)
+    {
+      std::stringstream ss;
+      ss << row_number << ": ";  
+      for (const auto& val : row)
+      {
+        ss << val << " ";
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;  // Increment the row number for the next row
     }
-    std::cout << std::endl;
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_vector");
+     row_number = 1;  
+    for (const auto& row : b_vect_)
+    {
+      std::stringstream ss;
+      ss << row_number << ": ";  
+      for (const auto& val : row) 
+      {
+        ss << val << " ";
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_violated_matrix_");
+     row_number = 1;  
+
+    for (const auto& row : A_violated_matrix_)
+    {
+      std::stringstream ss;
+      ss << row_number << ": "; 
+      for (const auto& val : row)
+      {
+        ss << val << " ";
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_violated_vect_");
+     row_number = 1;  
+
+    for (const auto& row : b_violated_vect_)
+    {
+      std::stringstream ss;
+      ss << row_number << ": "; 
+      for (const auto& val : row) 
+      {
+        ss << val << " ";
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "A_most_violated_matrix");
+     row_number = 1;  
+
+    for (const auto& row : A_most_violated_matrix_)
+    {
+      std::stringstream ss;
+      ss << row_number << ": "; 
+      for (const auto& val : row)
+      {
+        ss << val << " ";
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "b_most_violated_vect");
+     row_number = 1;  
+
+    for (const auto& row : b_most_violated_vect_)
+    {
+      std::stringstream ss;
+      ss << row_number << ": "; 
+      for (const auto& val : row)
+      {
+        ss << val << " ";
+      }
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+    
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC A_matrix");
+    row_number = 1;
+
+    for (int i = 0; i < mpc_obstacle_constraints_.matrix_rows.size(); ++i)
+    {
+      std::stringstream ss;
+      ss << row_number << ": ";
+      ss << mpc_obstacle_constraints_.matrix_rows[i].col1 << " ";
+      ss << mpc_obstacle_constraints_.matrix_rows[i].col2;
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC b_vector");
+    row_number = 1;
+
+    for (int i = 0; i < mpc_obstacle_constraints_.vector_rows.size(); ++i)
+    { 
+      std::stringstream ss;
+      ss << row_number << ": ";
+      ss << mpc_obstacle_constraints_.vector_rows[i].col1;
+      RCLCPP_INFO(rclcpp::get_logger("CustomController"), "%s", ss.str().c_str());
+      ++row_number;
+    }
+    
   }
 
-  std::cout<<"b_vector"<<std::endl;
 
 
-  for (const auto& row : b_vect_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  } 
-
-  std::cout<<"A_most_violated_matrix"<<std::endl;
-
-
-  for (const auto& row : A_most_violated_matrix_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }
-
-  std::cout<<"b_most_violated_vect"<<std::endl;
-
-
-  for (const auto& row : b_most_violated_vect_) {
-    for (const auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }
-  
-  */
-
-  // function that creates polygons/lines and publishes them as Marker msg for visualisation
+ // function that creates polygons/lines and publishes them as Marker msg for visualisation
 
   publishAsMarker(frame_id_, obstacles,false);
-
-  //publishAsMarker(frame_id_,considered_polygons,false);
 
   publishAsMarker(frame_id_,convex_hull_array,true);
 
@@ -560,68 +717,9 @@ void CustomController::timer_callback()
 
 //////////////////////////////////////////////////
 
-}
-
-
-// will determine if a point is inside set of constraints
-bool CustomController::isViolated(const costmap_converter::CostmapToPolygonsDBSMCCH::KeyPoint &point,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vector)
-{
-
-  // perform a loop through A_matrix and check for each line constraint if the current point satisfies it
-  // if all constraints are satisfied or violated return the bool
-
-  std::vector<std::vector<float>> b_vect = b_vector;
-
-  int num_constraints = A_matrix.size();
-
-  int count = 0;
-
-
-  for (size_t row = 0; row < A_matrix.size();row++)
-  {
-      bool horizontal = false;
-
-   // std::cout<<"row: "<<row<<std::endl;
-   //           std::cout<<"centroid x"<<final_stored_centroid_point_[row].x<<std::endl;
-
-    if(A_matrix[row][0] == 1) // the equation for the horizontal line is flipped (equation describing line below robot is actually above)
-                              // in order to get the right representation the intercept's sign should be flipped
-    {
-      b_vect[row][0] = b_vect[row][0]*-1; // positive intercept is top half-plane, negative is bottom half-plane
-      horizontal = true;
-    }
-
-    float result = (A_matrix[row][0] * point.x + A_matrix[row][1] * point.y) - b_vect[row][0];
-    float result_origin = (A_matrix[row][0] * robot_pose_.pose.position.x + A_matrix[row][1] * robot_pose_.pose.position.y) - b_vect[row][0];
-
-    if (result * result_origin < 0)
-    {
-      // not in the same plane
-    }
-    else if (result * result_origin > 0)
-    {
-      count++;
-    }
-
-
   }
 
-  if (count == num_constraints) // all constraints are satisfied, therefore point satisfy 
-  {
-    return false; // return that point does not violate the constraints
-  }
-  else
-  {
-    return true; // if at least one constraint is violated, the point does not satisfy
-  }
-
-  
-  
-
-}
-
-
-costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
+ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles)
 {
 
   costmap_converter_msgs::msg::ObstacleArrayMsg centroid;
@@ -667,12 +765,10 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
   centroid_path_msg_.poses.clear();
 
 
-// convert ObstacleArrayMsg to Path msg of the centroid
+  // convert ObstacleArrayMsg to Path msg of the centroid
 
   for (const auto &obstacle : centroid.obstacles)
   {
-
-
 
     // Set the header for the centroid pose stamped message
     centroid_pose_stamped_.header = obstacle.header;
@@ -695,25 +791,14 @@ costmap_converter_msgs::msg::ObstacleArrayMsg CustomController::computeCentroid(
       return euclidean_distance(robot_pose_, ps);
     });
 
-  // Check if centroid path has any poses before accessing to prevent segmentation fault
-  if (!centroid_path_msg_.poses.empty() && closest_centroid_it != centroid_path_msg_.poses.end())
-  {
-   // std::cout << "Closest centroid x coordinate: " << closest_centroid_it->pose.position.x << std::endl;
-   // std::cout << "Closest centroid y coordinate: " << closest_centroid_it->pose.position.y << std::endl;
-   // double distance = euclideanDistance(closest_centroid_it->pose.position.x,closest_centroid_it->pose.position.y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
-   // std::cout<<"Closest centroid distance:"<<distance<<std::endl;
-
-  }
-
   return centroid;
 }
 
-//// NB combine polygon_filter and computeCentroid to be filterPolygons function !!!!
-void CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
+  void CustomController::polygon_filter(const costmap_converter_msgs::msg::ObstacleArrayMsg &polygon_centroids, 
   const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles,costmap_converter_msgs::msg::ObstacleArrayMsg &considered_polygons, costmap_converter_msgs::msg::ObstacleArrayMsg &considered_centroid)
 {
 
-  int index=0;
+  int obst_index=0;
 
   // Iterate over each polygon in polygon_centroids.obstacles
   for (const auto &obstacle:polygon_centroids.obstacles)
@@ -723,34 +808,29 @@ void CustomController::polygon_filter(const costmap_converter_msgs::msg::Obstacl
     double distance = euclideanDistance(obstacle.polygon.points[0].x,obstacle.polygon.points[0].y,robot_pose_.pose.position.x,robot_pose_.pose.position.y);
     
     // if the distance is below a threshold "thresh" then consider it and store it in a vector
-    if (distance < obstacle_distance_thresh_)
+   // if (distance < obstacle_distance_thresh_)
+    if(distance<obstacle_distance_thresh_)
     {
 
       considered_centroid.obstacles.push_back(obstacle);
-      considered_polygons.obstacles.push_back(obstacles.obstacles[index]);
+      considered_polygons.obstacles.push_back(obstacles.obstacles[obst_index]);
 
     }
 
-    index++;
+    obst_index++;
 
   }
+  }
 
-  // Return the vector container with considered polygons below the threshold
-  std::cout<<"Number of considered polygons:"<<considered_polygons.obstacles.size()<<std::endl;
-  
-}
-
-void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,const geometry_msgs::msg::PoseStamped  &pose,const geometry_msgs::msg::Point32 &p3_centroid,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
+void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  const geometry_msgs::msg::Point32 &p2,std::vector<std::vector<float>> &A_matrix,std::vector<std::vector<float>> &b_vect)
 {
 
   float slope,intercept;
   std::vector<float> rowVector;
   geometry_msgs::msg::Point32 point1 = p1;
   geometry_msgs::msg::Point32 point2 = p2;
-  geometry_msgs::msg::Point32 centroid_point = p3_centroid;
 
   // calculate slope "m"
-
   slope = (point2.y - point1.y)/(point2.x - point1.x);
 
 
@@ -758,7 +838,7 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   if (slope == std::numeric_limits<float>::infinity() || slope == -std::numeric_limits<float>::infinity())
   {
     slope = 1; // before slope had inverted sign
-    intercept = -point1.x; //before intercept had the original non-inverted value of x
+    intercept = point1.x; //before intercept had the original non-inverted value of x
     rowVector = {slope, 0};
   }
   else if (slope == 0) // vertical line
@@ -771,179 +851,198 @@ void CustomController::calcLineEquation(const geometry_msgs::msg::Point32 &p1,  
   {
 
    intercept = point1.y - slope * point1.x;
-   rowVector = {-slope, 1};
+   rowVector = {-slope, 1}; 
 
   }
 
   A_matrix.push_back(rowVector);
-  b_vect.push_back({intercept});
-    
+  b_vect.push_back({intercept});    
 }
 
-// decide if should I pass out parameters or save the results to private members
-void CustomController::compute_violated_constraints(const std::vector<geometry_msgs::msg::Point32> &robot_footprint_,const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
+
+void CustomController::compute_violated_constraints(const geometry_msgs::msg::Point32 &p_centroid,const std::vector<std::vector<float>> &A_matrix,const std::vector<std::vector<float>> &b_vect)
 {
-
-  // when I have horizontal line with 2 vertices only it happens that the calculated result_centroid is zero!
-
-  int count = 0;
-  geometry_msgs::msg::Point32 centroid_point = p_centroid;
-  static geometry_msgs::msg::Point32 old_centroid_point;
-  old_centroid_point.x = 0;
-  old_centroid_point.y = 0;
-
-  std::vector<geometry_msgs::msg::Point32> robot_footprint = robot_footprint_;
-
-  std::vector<float> result_footprint_points_stored;
-  result_footprint_points_stored.clear();
-
-
   if (!A_matrix.empty() && !b_vect.empty())
   {
 
-   // std::cout<<"current b vect"<<b_vect[b_vect.size()-1][0]<<std::endl;
+    // inflate the latest constraint stored in A_matrix and b_vect
+    inflate_constraint(A_matrix[A_matrix.size()-1],b_vect[b_vect.size()-1][0],p_centroid);
+    result_pose = (A_matrix[A_matrix.size()-1][0] * robot_pose_.pose.position.x + A_matrix[A_matrix.size()-1][1] * robot_pose_.pose.position.y) - b_vect_inflated_[b_vect_inflated_.size()-1][0];
 
-    for (auto &point : robot_footprint)
+    //check if the current constraint separate in different half-planes the robot's center and centroid of obstacle
+    if(isViolated(p_centroid,A_matrix[A_matrix.size()-1],b_vect_inflated_[b_vect_inflated_.size()-1][0]) == true)
     {
-
-    //  std::cout<<"point 1 x: "<<point.x<<"point 1 y: "<<point.y<<std::endl;
-    //  std::cout<<"A matrix [] [] "<<A_matrix[A_matrix.size()-1][0]<<" "<<A_matrix[A_matrix.size()-1][1]<<std::endl;
-    //  std::cout<<"b vect "<<b_vect[b_vect.size()-1][0]<<std::endl;
-
-
-
-      result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
-      result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - b_vect[b_vect.size()-1][0];
-      
-    //  std::cout<<"result pose: "<<result_pose<<std::endl;
-    //  std::cout<<"result centroid: "<<result_centroid<<std::endl;  
-      if (A_matrix[A_matrix.size()-1][1] == 0) // if we have a horizontal line
-      {
-        result_centroid = (A_matrix[A_matrix.size()-1][0] * centroid_point.x + A_matrix[A_matrix.size()-1][1] * centroid_point.y) - (-1 *b_vect[b_vect.size()-1][0]);
-        result_pose = (A_matrix[A_matrix.size()-1][0] * point.x + A_matrix[A_matrix.size()-1][1] * point.y) - b_vect[b_vect.size()-1][0];
-
-     //   std::cout<<"result pose: "<<result_pose<<std::endl;
-     //   std::cout<<"result centroid: "<<result_centroid<<std::endl;
-
-        if(result_pose*result_centroid > 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
-        {
-
-          result_footprint_points_stored.push_back({result_pose});
-
-
-        }
-
-        else if (result_pose*result_centroid < 0) // since the horizontal lines are flipped in what they represent on the map, violation of centroid and pose is when their sign is with the same sign
-        {
-          result_footprint_points_stored.push_back({0});
-
-
-        }
-
-      }
-
-      // if their signs are different, then the current constraint is violated by the robot
-     // if their product is 0 it means that the centroid lies on the line (2 points line)
-
-      else
-      {
-        if (result_pose * result_centroid < 0 || result_pose * result_centroid == 0 || result_pose * result_centroid < 0.001)
-        {
-          result_footprint_points_stored.push_back({result_pose});
-
-        }
-        else if (result_pose * result_centroid > 0)
-        {
-          result_footprint_points_stored.push_back({0});
-        }
-      }
-
-    }
-
-    if (!result_footprint_points_stored.empty())
-    {
-
-  //  std::cout<<"result 1: "<<result_footprint_points_stored[0]<<" result 2: "<<result_footprint_points_stored[1]<<" result 3: "<<result_footprint_points_stored[2]<<" result 4: "<<result_footprint_points_stored[3]<<std::endl;;
-
-    // Check if all values have the same sign
-      bool all_positive = true;
-      bool all_negative = true;
-
-      for (float value : result_footprint_points_stored)
-      {
-        if (value > 0)
-        {
-          all_negative = false;
-        }
-        else if (value < 0)
-        {
-          all_positive = false;
-        }
-        else if ( value == 0)
-        {
-          all_negative = false;
-          all_positive = false;
-        }
-      }
-
-    // If all values are either positive or negative, the product will be positive
-      if (all_positive || all_negative)
-      {
-   //     std::cout << "All values have the same sign" << std::endl;
-        count = 4;
-      }
-    }
-
-    if (count == 4) // the robot's footprint violates the current constraint
-    { 
-
       A_violated_matrix_.push_back({A_matrix[A_matrix.size()-1][0],A_matrix[A_matrix.size()-1][1]});
-      b_violated_vect_.push_back({b_vect[b_vect.size()-1][0]});
+      b_violated_vect_.push_back({b_vect_inflated_[b_vect_inflated_.size()-1][0]});
       result_pose_stored_.push_back({result_pose,0});
-      costmap_converter_msgs::msg::ObstacleMsg centroid_of_obstacle;
-
-      if(old_centroid_point != centroid_point)
-      {
-        centroid_of_obstacle.polygon.points.push_back(centroid_point); 
-        stored_centroid_point_.obstacles.push_back(centroid_of_obstacle);
-      }
     }
-    old_centroid_point = centroid_point;
+    else if(isViolated(p_centroid,A_matrix[A_matrix.size()-1],b_vect_inflated_[b_vect_inflated_.size()-1][0]) == false)
+    {
+      // do not consider that constraint
+    }
   }
 }
+
 
 void CustomController::compute_most_violated_constraints()
 {
 
-  float largest = std::numeric_limits<float>::lowest(); // Initialize with the smallest possible value
-
+  float largest = std::numeric_limits<float>::lowest(); // Initialize with the lowest possible value
   int largest_index = 0;
-
+  float distance = 0;
   for (size_t row = 0; row < result_pose_stored_.size(); row++)
   {
-
-    // was > before
-    if(result_pose_stored_[row][0] < largest)
+    // compute the distance from robot's center to the current violated line 
+    distance = compute_distance_to_violated_constraint(robot_pose_.pose.position.x,robot_pose_.pose.position.y,A_violated_matrix_[row],b_violated_vect_[row][0]);
+    
+    if(distance > largest) 
     {
-      largest = result_pose_stored_[row][0];
+      // consider the violated line furthest from the robot
+      largest = distance;
       largest_index = row;
     }
-
   }
 
 
   if (!A_violated_matrix_.empty()  && !b_violated_vect_.empty() )
   {
-
+   
     A_most_violated_matrix_.push_back({A_violated_matrix_[largest_index][0],A_violated_matrix_[largest_index][1]});
     b_most_violated_vect_.push_back({b_violated_vect_[largest_index][0]});
-    A_violated_matrix_.clear();
-    b_violated_vect_.clear();
-    result_pose_stored_.clear();
+
+    nav2_custom_controller_msgs::msg::ColumnMsg A_matrix_col;
+    nav2_custom_controller_msgs::msg::ColumnMsg b_vect_col;
+
+    A_matrix_col.col1 = A_violated_matrix_[largest_index][0];
+    A_matrix_col.col2 = A_violated_matrix_[largest_index][1];
+    b_vect_col.col1 = b_violated_vect_[largest_index][0];
+
+    // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot
+    // this inversion is needed for the correct representation of the lines inside the MPC problem formulation
+
+    if(result_pose_stored_[largest_index][0] > 0) 
+  //  if(result_pose_stored_[largest_index][0] < 0) // for all most violated constraints that happen to be to the right of the robot and also for horizontal line behind robot ->  >0 is true for sim only, for real robot with 
+                                                  // positive x map frame down and positive y frame to the right, it should be for results < 0 
+    {
+      // invert all values
+      A_matrix_col.col1 = A_matrix_col.col1 * -1;
+      A_matrix_col.col2 = A_matrix_col.col2 * -1;
+      b_vect_col.col1 = b_vect_col.col1 * -1;
+
+    }
+
+      mpc_obstacle_constraints_.matrix_rows.push_back(A_matrix_col);
+      mpc_obstacle_constraints_.vector_rows.push_back(b_vect_col);
   }
+
+  A_violated_matrix_.clear();
+  b_violated_vect_.clear();
+  result_pose_stored_.clear();
 
 }
 
+
+
+void CustomController::inflate_constraint(const std::vector<float> &A_matrix_row,const float &b_vect,const geometry_msgs::msg::Point32 &centroid)
+{
+  // create inflated constraint (add 2 additional lines to the main constraint line)
+  float b_violated_vect_inflated_1,b_violated_vect_inflated_2;
+  b_violated_vect_inflated_1 = b_vect;
+  b_violated_vect_inflated_2 = b_vect;
+  float distance_between_lines = 0;
+
+  while (distance_between_lines < inflation_radius_)
+  {
+    b_violated_vect_inflated_1 = b_violated_vect_inflated_1 + 0.1; // add inflation
+    b_violated_vect_inflated_2 = b_violated_vect_inflated_2 - 0.1; // add inflation
+
+    // send inflated line to function and compute distance between inflated line and original line
+    distance_between_lines = compute_distance_between_lines(A_matrix_row,b_vect,b_violated_vect_inflated_1);
+
+  }
+  // once inflation is done, decide which inflated line to consider
+  float point_line_distance_1,point_line_distance_2;
+
+  point_line_distance_1 = compute_distance_to_violated_constraint(robot_pose_.pose.position.x,robot_pose_.pose.position.y,A_matrix_row,b_violated_vect_inflated_1);
+  point_line_distance_2 = compute_distance_to_violated_constraint(robot_pose_.pose.position.x,robot_pose_.pose.position.y,A_matrix_row,b_violated_vect_inflated_2);
+
+  // check for the current constraint if pose and centroid are in the same half-plane 
+  if(isViolated(centroid,A_matrix_row,b_vect)==true) 
+  {
+    // centroid and robot's center not in the same half-plane, consider inflated line closer to robot
+    if (point_line_distance_1 < point_line_distance_2 )
+    {
+      // push back b_vect_inflated_1 to b_vect_inflated_
+      b_vect_inflated_.push_back({b_violated_vect_inflated_1});
+    }
+    else if (point_line_distance_2 < point_line_distance_1)
+    {
+      // push back b_vect_inflated_2 to b_vect_inflated_
+      b_vect_inflated_.push_back({b_violated_vect_inflated_2});
+
+    }
+  }
+  else if(isViolated(centroid,A_matrix_row,b_vect)==false) 
+  {
+    // centroid and robot's center in the same half-plane, consider inflated line furthest from robot
+    if (point_line_distance_1 > point_line_distance_2 )
+    {
+      // push back b_vect_inflated_1 to b_vect_inflated_
+      b_vect_inflated_.push_back({b_violated_vect_inflated_1});
+
+    }
+    else if (point_line_distance_2 > point_line_distance_1)
+    {
+      // push back b_vect_inflated_2 to b_vect_inflated_
+      b_vect_inflated_.push_back({b_violated_vect_inflated_2});
+
+    }
+  }
+} 
+
+float CustomController::compute_distance_between_lines(const std::vector<float> &A_matrix_row,const float &b_vect,const float &b_vect_inflated)
+{
+  float A,B,C1,C2;
+
+  A = A_matrix_row[0]; 
+  B = A_matrix_row[1];
+  C1 = b_vect;
+  C2 = b_vect_inflated;
+
+  return abs(C2-C1)/sqrt(pow(A,2) + pow(B,2));
+}
+
+// b_vector_row_value is the row, col value of b_vector (that value corresponds to the intercept of the line)
+float CustomController::compute_distance_to_violated_constraint(const float &x_coord, const float &y_coord, const std::vector<float> &A_matrix_row,const float &b_vect)
+{
+  
+  // (A*x+B*y+C)/sqr((A^2 + B^2)) - distance of a point to a line
+  float A,B,C;
+  A = A_matrix_row[0];
+  B = A_matrix_row[1];
+  C = b_vect * -1;
+
+  return abs((A * x_coord + B * y_coord + C) / sqrt(pow(A,2) + pow(B,2)));;
+}
+
+
+ // will determine if a point and robot's center are in the same half-plane given a constraint 
+bool CustomController::isViolated(const geometry_msgs::msg::Point32 &point,const std::vector<float> &A_matrix_row,const float &b_vect)
+{
+
+  float result = (A_matrix_row[0] * point.x + A_matrix_row[1] * point.y) - b_vect;
+  float result_origin = (A_matrix_row[0] * robot_pose_.pose.position.x + A_matrix_row[1] * robot_pose_.pose.position.y) - b_vect;
+
+  if (result * result_origin < 0 || result * result_origin == 0 || result * result_origin < 0.001)
+  {
+    // not in the same plane
+    return true;
+  }
+  else if (result * result_origin > 0)
+  {
+    return false;
+  }
+}
 
 void CustomController::publishAsMarker(const std::string &frame_id,const costmap_converter_msgs::msg::ObstacleArrayMsg &obstacles, bool print_convex_region)
 {
@@ -1005,6 +1104,9 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
       }
     }
 
+
+
+
     // publish on 2 different topic depending on the passed parameter
      if (print_convex_region == false)
      {
@@ -1016,301 +1118,445 @@ void CustomController::publishAsMarker(const std::string &frame_id,const costmap
       marker_pub_cnvx_reg_ ->publish(line_list);
     }
 
-      // else 
-      // marker_pub_cnvx_reg_ -> publish(line_list)
-}
 
+
+    ///////////////////////////////
+
+
+  A_convex_region_matrix_.clear();
+  b_convex_region_vect_.clear();
+
+
+  //iterate over each vertex of the current polygon (.size() - 2 to account for last vertex in the vector that is duplicate of the first vertex)
+    for (int j = 0; j < (int)line_list.points.size() - 2; ++j)
+    {
+
+
+    geometry_msgs::msg::Point32 point,point2;
+
+    point.x = line_list.points[j].x;
+    point.y = line_list.points[j].y;
+    point2.x = line_list.points[j+1].x;
+    point2.y = line_list.points[j+1].y;
+
+
+
+     // calcLineEquation(line_list.points[j],line_list.points[j+1],A_convex_region_matrix_,b_convex_region_vect_);
+      calcLineEquation(point,point2,A_convex_region_matrix_,b_convex_region_vect_);
+
+    }
+
+     // to prevent accessing empty vector (resulting in undefined behaviour) perform check if the
+      // vector is not empty and if the vector size is not 2 (otherwise the for loop between 2 points will be enough)
+    if (!line_list.points.empty() && line_list.points.size() != 2)
+    {
+
+      // calculate the equation of the line between last point and first point of the polygon
+      auto last_point = line_list.points.end();  
+      auto prev_point = std::prev(last_point, 2);  
+      geometry_msgs::msg::Point32 point3,point4;
+      //auto point5 = *prev_point;
+      point3.x = (*prev_point).x;
+      point3.y = (*prev_point).y;
+      point4.x = line_list.points.front().x;
+      point4.y = line_list.points.front().y;
+
+    //  calcLineEquation(*prev_point,line_list.points.front(),A_convex_region_matrix_,b_convex_region_vect_);
+          calcLineEquation(point3,point4,A_convex_region_matrix_,b_convex_region_vect_);
+
+    }
+
+    for (int row=0; row<A_convex_region_matrix_.size();row++)
+    {
+      for (int col=0; col<A_convex_region_matrix_[row].size();col++)
+      {
+
+      }
+    }
+}
 
 
 void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovarianceStamped &amcl_pose) 
 {
-
-
   robot_pose_.pose.position.x = amcl_pose.pose.pose.position.x;
   robot_pose_.pose.position.y = amcl_pose.pose.pose.position.y;
 }
 
 
 
-
 void CustomController::cleanup()
 {   
-	RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Cleaning Controller!");
+  RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Cleaning Controller!");
 }
 
 void CustomController::activate()
 {
-	RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Activating Controller!");
+  RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Activating Controller!");
 }
 
 void CustomController::deactivate()
 {
-	RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Deactivating Controller!");
+  RCLCPP_INFO(rclcpp::get_logger("CustomController"),"Deactivating Controller!");
 }
 
+
+// configured in yaml file to run every 10ms or (100Hz) 
 geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const geometry_msgs::msg::PoseStamped & pose,
-  const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
+const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
 {
 
-/*
+  // publish pose to /pose topic
+  geometry_msgs::msg::PoseStamped pose_pub;
+  pose_pub.header.frame_id = "map"; // Set the frame ID appropriately
+  pose_pub.pose.position.x = pose.pose.position.x;
+  pose_pub.pose.position.y = pose.pose.position.y;
+  pose_pub.pose.orientation = pose.pose.orientation;
 
-  static auto start_time_MPC = std::chrono::high_resolution_clock::now();
+  // Publish the pose
+  pose_pub_->publish(pose_pub);
+  robot_pose_.pose.position.x = pose.pose.position.x;
+  robot_pose_.pose.position.y = pose.pose.position.y;
 
-    // Convert to system_clock time point (for human-readable output)
-  //  auto start_time_s = std::chrono::system_clock::to_time_t(start_time_MPC);
-    
-    // Print the end time in a human-readable format
-    //std::cout << "Start time: " << std::ctime(&start_time_s) << std::endl;
+  // Define a duration type for milliseconds
+  using Milliseconds = std::chrono::milliseconds;
 
+  // Get the current time before executing the function
+  auto start_time = std::chrono::steady_clock::now();
 
-
-  static auto start_time_lin = std::chrono::high_resolution_clock::now();
-
-  double v_act,w_act;
-
-
-    // Convert to system_clock time point (for human-readable output)
-   // auto start_time_s2 = std::chrono::system_clock::to_time_t(start_time_lin);
-    
-    // Print the end time in a human-readable format
-   // std::cout << "Start time lin: " << std::ctime(&start_time_s2) << std::endl;
-
-
-
-
-
-  // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
   double roll, pitch, yaw;
   tf2::Quaternion quat;
   tf2::fromMsg(pose.pose.orientation, quat);
   tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-  //std::cout<< "yaw =  "<<yaw<<std::endl;
+  double v_act,w_act; 
+
+  MPC_->set_actualRobotState(Eigen::Vector3d(pose.pose.position.x, pose.pose.position.y, yaw)); // position.z is converted yaw
+
+  if (std::sqrt(std::pow((pose.pose.position.x) - global_plan_.poses[index].pose.position.x,2.0) + std::pow(pose.pose.position.y - global_plan_.poses[index].pose.position.y,2.0)) <= 0.5)
+  {
+    index = std::min(static_cast<int>(index + 1), static_cast<int>(global_plan_.poses.size() - 1));
+  }
+
+  // Convert global_plan_poses.pose.orientation from Quaternion to Roll,Pitch,Yaw
+  // important to pass to not pass 0 yaw angle to the poses before the final one, otherwise tracking of reference is bad
+  // this will take the last pose yaw and use it for all segmented points
+  int last_index = global_plan_.poses.size() - 1; 
+  double roll_glob_plan, pitch_glob_plan, yaw_glob_plan;
+  tf2::Quaternion quat_glob_plan;
+  tf2::fromMsg(global_plan_.poses[last_index].pose.orientation, quat_glob_plan);
+  tf2::Matrix3x3(quat_glob_plan).getRPY(roll_glob_plan, pitch_glob_plan, yaw_glob_plan);
+
+  /////// Activation of final orientation controller /////////////////
+
+  if (std::sqrt(std::pow((pose.pose.position.x) - global_plan_.poses[last_index].pose.position.x,2.0) + std::pow(pose.pose.position.y - global_plan_.poses[last_index].pose.position.y,2.0)) <= 0.2)
+  {
+    stop_mpc = true;
+    double angle_diff = yaw_glob_plan - yaw;
+    while (angle_diff > M_PI) angle_diff -= 2.0 * M_PI;
+    while (angle_diff < -M_PI) angle_diff += 2.0 * M_PI;
+    if (angle_diff > 0 )
+    {
+        // Rotate counterclockwise
+      cmd_vel.twist.linear.x = 0;
+      cmd_vel.twist.angular.z = 0.5;
+    }
+    else
+    {
+        // Rotate clockwise
+      cmd_vel.twist.linear.x = 0;
+      cmd_vel.twist.angular.z = -0.5;
+    }
+
+  }
 
 
-  MPC_->set_actualRobotState(Eigen::Vector3d(pose.pose.position.x,pose.pose.position.y, yaw));
+    ///////////////// WHEN USING NAV2 PLANNER
+    // MPC_->set_referenceRobotState(Eigen::Vector3d(global_plan_.poses[index].pose.position.x, global_plan_.poses[index].pose.position.y, yaw_glob_plan)); 
 
- // Find the closest pose on the path to the robot
-  auto transformation_begin =
-      min_by(
-          global_plan_.poses.begin(), global_plan_.poses.end(),
-          //&pose is current robot pose, ps is the other pose to go in euclidean_distance
-          [&pose](const geometry_msgs::msg::PoseStamped &ps)
-          {
-            return euclidean_distance(pose, ps);
-          });
+    // here passing the current orientation of the robot instead of the one of the final goal
+  MPC_->set_referenceRobotState(Eigen::Vector3d(global_plan_.poses[index].pose.position.x, global_plan_.poses[index].pose.position.y, yaw)); 
+    //////////////////////////////////////////
 
-  // From the closest point, look for the first point that's 0.4m away
-  auto transformation_end = std::find_if(
-      transformation_begin, end(global_plan_.poses),
-      [&](const auto &global_plan_pose)
-      {
-        return euclidean_distance(pose, global_plan_pose) > 0.4; 
-      });
+    ///////////// WHEN USING CUSTOM PATH
 
-  // assign each consecutive goal pose 0.4m away from the previous
-  auto target_pose_ = *transformation_end;
+    // MPC_->set_referenceRobotState(Eigen::Vector3d(global_plan_.poses[index].pose.position.x, global_plan_.poses[index].pose.position.y, global_plan_.poses[last_index].pose.position.z)); 
+    ///////////////////////////////
 
-// Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
-  double roll2, pitch2, yaw2;
-  tf2::Quaternion quat2;
-  tf2::fromMsg(target_pose_.pose.orientation, quat2);
-  tf2::Matrix3x3(quat2).getRPY(roll2, pitch2, yaw2);
+  nav_msgs::msg::Path path_msg;
+  path_msg.header.frame_id = "map"; // Set the frame ID appropriately
+  for ( auto& pose_stamped : global_plan_.poses)
+  {
+    pose_stamped.pose.position.z = 0.0;
+    path_msg.poses.push_back(pose_stamped);
+  }
+  path_publisher_->publish(path_msg);
 
-//  std::cout<< "yaw2 =  "<<yaw2<<std::endl;
+  // Create a marker message for the current reference point
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "map";
+  //marker.header.stamp = node_->now();
+  marker.ns = "poses";
+  marker.id = index; // Use index as the ID to uniquely identify each marker
+  marker.type = visualization_msgs::msg::Marker::SPHERE;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.pose.position.x = global_plan_.poses[index].pose.position.x;
+  marker.pose.position.y = global_plan_.poses[index].pose.position.y;
+  marker.pose.position.z = 0.0;
+  marker.pose.orientation.w = 1.0;
+  marker.scale.x = 0.05;
+  marker.scale.y = 0.05;
+  marker.scale.z = 0.05;
+  marker.color.a = 1.0;
+  marker.color.r = 1.0;
+  marker.color.g = 0.0;
+  marker.color.b = 0.0;
 
+  // Publish the marker
+  marker_pub_ref_point_->publish(marker);
 
+  geometry_msgs::msg::PoseStamped goal_pose;
+  goal_pose.header.frame_id = "map";
+  goal_pose.pose = global_plan_.poses[last_index].pose;
+  // Publish the goal pose
+  goal_pub_->publish(goal_pose);
+  geometry_msgs::msg::PoseStamped bool_pose;
+  bool_pose.pose.position.x = 1;
+  bool_pub_->publish(bool_pose);
 
-//MPC_->set_referenceRobotState(Eigen::Vector3d(target_pose_.pose.position.x, target_pose_.pose.position.y,45));
+  // Static variable to store the last call time
+  static auto last_call_time = std::chrono::steady_clock::now();
 
-MPC_->set_referenceRobotState(Eigen::Vector3d(1, 0.0,0));
+  // Compute feedback_linearization
+  execute_fblin();
 
+  // Get the current time
+  auto now = std::chrono::steady_clock::now();
 
+  // Check if Ts_MPC_*1000 ms have passed since the last call
+  if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time).count() >= Ts_MPC_*1000)
+  {
 
-if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_MPC).count() >= 200) // execute the MPC every 0.2 seconds
- {
+    int status;
+    MPC_->get_status(status);
 
-    // Get the current time point
-    //auto end_time = std::chrono::high_resolution_clock::now();
+  if (status == 1) // error solving optim problem
+  {
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Error solving the optimization problem - solver infeasible");
+    RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Re-initializing MPC");
+    // make it wait for 0.5 seconds before intializing again !
+    rclcpp::sleep_for(std::chrono::milliseconds(2000));
+    MPC_->initialize(); // re-init the MPC problem to try again
+    cmd_vel.twist.linear.x = 0;
+    cmd_vel.twist.angular.z = 0;
     
-    // Convert to system_clock time point (for human-readable output)
-   // auto end_time_s = std::chrono::system_clock::to_time_t(end_time);
-    
-    // Print the end time in a human-readable format
-  //  std::cout << "End time: " << std::ctime(&end_time_s) << std::endl;
+  }
 
+    // RCLCPP_INFO(rclcpp::get_logger("CustomController"),"MPC optim started: %.2f",robot_pose_.pose.position.x);
+    // Define a duration type for milliseconds
+  using Milliseconds = std::chrono::milliseconds;
+
+    // Calculate the time between consecutive calls
+  auto interval_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time);
+  double interval_duration_ms = static_cast<double>(interval_duration.count());
+
+    // Get the current time before executing the function
+  auto start_time = std::chrono::steady_clock::now();
+
+    // Execute the MPC
+  if(stop_mpc==false)
+  {
+    execute_mpc();
+  }
+
+    // Get the current time after executing the function
+  auto end_time = std::chrono::steady_clock::now();
+
+    // Calculate the duration of execution in milliseconds
+  auto duration = std::chrono::duration_cast<Milliseconds>(end_time - start_time);
+
+  double duration_ms = static_cast<double>(duration.count());
+
+    // Print the duration in milliseconds
+  //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "MPC optimisation time: %.3f ms", duration_ms);
+
+    // Reset the last call time
+  last_call_time = now;
+}
+
+
+
+  MPC_->get_actualControl(v_act, w_act);
+
+  if (stop_mpc ==false)
+  {
+    cmd_vel.twist.linear.x = v_act;
+
+    cmd_vel.twist.angular.z = w_act;
+  }
+
+
+
+    // Get the current time after executing the function
+  auto end_time = std::chrono::steady_clock::now();
+
+        // Calculate the duration of execution in milliseconds
+  auto duration = std::chrono::duration_cast<Milliseconds>(end_time - start_time);
+
+  double duration_ms = static_cast<double>(duration.count());
+
+        // Print the duration in milliseconds
+     //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Execution time of computeVelocityCommands: %.3f ms", duration_ms);
+     //   RCLCPP_INFO(rclcpp::get_logger("CustomController"), "End of computeVelocityCommands: %.3f ms", duration_ms);
+
+
+
+
+  return cmd_vel;
+}
+
+void CustomController::execute_mpc() // every Ts_MPC_ seconds
+{
   
- // std::cout<<"MPC executed after 3 seconds"<<std::endl;
 
-  double vPx_act, vPy_act;
+  if (obstacle_avoidance_ == true)
+  {
 
-  // compute MPC control and optimisation to obtain optimal control inputs 
-  // xp dot and yp dot to be used by the feedback linearisation to get v and w
 
+    if(mpc_obstacle_constraints_matrix_.size()!=0) // if there are obstacle constraints, set them in MPC class
+    {
+
+      MPC_->set_obstacle_matrices(mpc_obstacle_constraints_matrix_,mpc_obstacle_constraints_vector_);
+    }
+  }
+
+  // Define a duration type for milliseconds
+  using Milliseconds = std::chrono::milliseconds;
+
+  // Get the current time before executing the function
+  auto start_time = std::chrono::steady_clock::now();
+
+  // Solve the MPC problem
   MPC_->executeMPCcontroller();
 
+  // Get the current time after executing the function
+  auto end_time = std::chrono::steady_clock::now();
+
+  // Calculate the duration of execution in milliseconds
+  auto duration = std::chrono::duration_cast<Milliseconds>(end_time - start_time);
+
+  // Print the duration in milliseconds
+  //  RCLCPP_INFO(rclcpp::get_logger("CustomController"), "Execution time: %lld ms", duration.count());
+
   Eigen::VectorXd MPC_actControl;
+  Eigen::VectorXd point_p_pose(2);
+  Eigen::VectorXd point_p_ref_pose(2);
+  double obj_value;
 
-  // get xp dot and yp dot that are computed by the MPC
-  MPC_->get_actualMPCControl(MPC_actControl);
-
-  vPx_act = MPC_actControl(0);
-  vPy_act = MPC_actControl(1);
-
-  start_time_MPC = std::chrono::high_resolution_clock::now();
- }
-
-if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time_lin).count() >= 10) // execute the FBLIN every 0.01 seconds
-{
-
- // std::cout<<"Linearization executed after 0.01 seconds"<<std::endl;
-
-
-    // Get the current time point
-   // auto end_time = std::chrono::high_resolution_clock::now();
-    
-    // Convert to system_clock time point (for human-readable output)
-   // auto end_time_s = std::chrono::system_clock::to_time_t(end_time);
-    
-    // Print the end time in a human-readable format
-  //  std::cout << "End time linearization: " << std::ctime(&end_time_s) << std::endl;
-
-  MPC_->executeLinearizationController();
-
-  start_time_lin = std::chrono::high_resolution_clock::now();
-
-
+  MPC_->get_actualMPCstate(point_p_pose);
+  MPC_->get_referenceMPCstate(point_p_ref_pose);
+  MPC_->get_objective_value(obj_value);
 }
 
-// Get actual control signal
-// store computed v and w from fblin class to v_act, w_act variables
- MPC_->get_actualControl(v_act, w_act);
-
-
-
-
-
-  // Apply feedback linearization
-  cmd_vel_.twist.linear.x = v_act;
-  cmd_vel_.twist.angular.z = w_act;
-
-  cmd_vel_.header.frame_id = pose.header.frame_id;
-  cmd_vel_.header.stamp = clock_->now();
-
-
-
- std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
-std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
-  
-
-
-
-*/
-
-
-
-//////// Feedback linearization only
-
-
-
-
-
-
-
-
-
-  double epsilon_ = 0.15;
-
-  // Convert pose.pose.orientation from Quaternion to Roll,Pitch,Yaw
-  double roll, pitch, yaw;
-  tf2::Quaternion quat;
-  tf2::fromMsg(pose.pose.orientation, quat);
-  tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
-
-  // Record the start time
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  // centroid.obstacles.begin(),centroid.obstacles.end()
-
-
-  // Find the closest pose on the path to the robot
-  auto transformation_begin =
-      min_by(
-          global_plan_.poses.begin(), global_plan_.poses.end(),
-          //&pose is current robot pose, ps is the other pose to go in euclidean_distance
-          [&pose](const geometry_msgs::msg::PoseStamped &ps)
-          {
-            return euclidean_distance(pose, ps);
-          });
-
-  // From the closest point, look for the first point that's 0.4m away
-  auto transformation_end = std::find_if(
-      transformation_begin, end(global_plan_.poses),
-      [&](const auto &global_plan_pose)
-      {
-        return euclidean_distance(pose, global_plan_pose) > 0.4; 
-      });
-
-  // assign each consecutive goal pose 0.4m away from the previous
-  auto target_pose_ = *transformation_end;
-
-  // Record the end time
-  auto end_time = std::chrono::high_resolution_clock::now();
-
-  // Calculate the duration
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-
-  // Print the execution time
- // std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
-
-  // calculate point P at a distance epsilon from the robot
-  feedback_lin_.calcPointP(pose, yaw, epsilon_);
-
-  // Apply proportional control for trajectory tracking without feed forward term
-  double xp_dot_ = (target_pose_.pose.position.x - feedback_lin_.getPointP()[0]) * 2.5;
-  double yp_dot_ = (target_pose_.pose.position.y - feedback_lin_.getPointP()[1]) * 1.5;
- 
-  // Apply feedback linearization
-  cmd_vel_ = feedback_lin_.linearize(xp_dot_, yp_dot_);
-
-  cmd_vel_.header.frame_id = pose.header.frame_id;
-  cmd_vel_.header.stamp = clock_->now();
-
- // std::cout<<"cmd_vel lin speed"<<cmd_vel_.twist.linear.x<<std::endl;
- // std::cout<<"cmd vel ang speed"<<cmd_vel_.twist.angular.z<<std::endl;
-
-
-
-  return cmd_vel_;
+void CustomController::execute_fblin()
+{
+    
+  MPC_->executeLinearizationController();
+     
 }
 
 
 void CustomController::setPlan(const nav_msgs::msg::Path &path )
 {
+  stop_mpc = false;
 
-  global_plan_ = path;
-//
+  // path_loaded_
+  if (load_path_==true)
+  {
+    // Load the path, do not use the path from the nav2 planner
+    disable_nav2_path_ = true;
+    // path_saved_ = true; // If we are loading the path, we do not need to save it again
 
+    save_path_ = false;
 
+    std::vector<std::string> file_paths = {"nav2_path_combined.csv"};
 
+    for (const auto& file_path : file_paths)
+    {
+      std::ifstream csvfile(file_path);
+      if (!csvfile.is_open())
+      {
+        std::cerr << "Failed to open file: " << file_path << std::endl;
+        return;
+      }
 
+      std::string line;
+      while (std::getline(csvfile, line))
+      {
+        std::istringstream line_stream(line);
+        std::string field;
+        std::vector<double> data;
 
-}
+        while (std::getline(line_stream, field, ','))
+        {
+          data.push_back(std::stod(field));
+        }
 
-void CustomController::MPC()
-{
+        if (data.size() != 3)
+        {
+          std::cerr << "Incorrect data format in CSV file" << std::endl;
+          continue;
+        }
 
-    double stop = 10.0; // Stop time in seconds
-    double step = 0.001;  // Time step in seconds
-
-    // Do simulation
-    for (double time = 0.0; time < stop; time += step) {
-        // Perform simulation operations here
-        // This loop will execute until the stop time is reached
-        
-        // For demonstration, let's print the current time
-        std::cout << "Current time: " << time << " seconds" << std::endl;
+        double x = data[0];
+        double y = data[1];
+        double yaw = data[2];
+        geometry_msgs::msg::PoseStamped pose_stamped;
+        pose_stamped.header.frame_id = "map"; // Set the frame ID appropriately
+        pose_stamped.pose.position.x = x;
+        pose_stamped.pose.position.y = y;
+        pose_stamped.pose.position.z = yaw;
+        global_plan_.poses.push_back(pose_stamped);
+      }
+      csvfile.close();
     }
+
+  load_path_ = false; // Setting it to true will make sure that the if statement is executed only once
+  }
+
+  static int file_index = 0; // Static variable to keep track of the file index
+
+  if (save_path_ == true)
+  {
+    // Create a filename with the current index
+    std::string filename = "/home/rosetea/ros2_ws/scout_garabetov/nav2_path_" + std::to_string(file_index) + ".csv";
+    std::ofstream csvfile(filename); // Open the file with the new filename
+    if (!csvfile.is_open())
+    {
+      std::cerr << "Failed to open file for writing: " << filename << std::endl;
+      return;
+    }
+        
+    for (const auto& pose_stamped : path.poses)
+    {
+      double x = pose_stamped.pose.position.x;
+      double y = pose_stamped.pose.position.y;
+      // Extract yaw from the quaternion orientation
+      tf2::Quaternion quaternion;
+      tf2::fromMsg(pose_stamped.pose.orientation, quaternion);
+      double yaw = tf2::getYaw(quaternion);
+      csvfile << x << "," << y << "," << yaw << "\n"; // Write pose data with yaw
+    }
+      csvfile.close();
+      file_index++; // Increment the file index
+      // save_path_ = false; // Reset the flag to prevent further saving until it is set to true again
+  }
+    
+  if (disable_nav2_path_ == false)
+  {
+    global_plan_ = path;
+    index = 1; // reset the index for the newly received path
+
+  }
 
 }
 
