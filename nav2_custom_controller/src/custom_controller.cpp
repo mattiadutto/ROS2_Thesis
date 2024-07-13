@@ -1281,9 +1281,16 @@ void CustomController::pose_sub_callback(const geometry_msgs::msg::PoseWithCovar
 
   // configured in yaml file to run every 10ms or (100Hz) 
   geometry_msgs::msg::TwistStamped CustomController::computeVelocityCommands(const geometry_msgs::msg::PoseStamped & pose,
-  const geometry_msgs::msg::Twist &  , nav2_core::GoalChecker * ) 
+  const geometry_msgs::msg::Twist & velocity  , nav2_core::GoalChecker * goal_checker ) 
   {
 
+
+/// GOAL CHECKER CODE
+
+    if (goal_checker->isGoalReached(robot_pose_.pose, global_plan_.poses.back().pose,velocity ) == false)
+    {
+      std::cout<< "GOAL REACHED"<<std::endl;
+    }
 
     robot_pose_.pose.position.x = pose.pose.position.x;
     robot_pose_.pose.position.y = pose.pose.position.y;
